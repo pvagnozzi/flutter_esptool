@@ -1,0 +1,57 @@
+name: Release and Publish
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  release-and-publish:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Validate package
+        run: |
+          flutter analyze
+          flutter test
+          dart pub publish --dry-run
+
+      - name: Read package version
+        id: package_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.package_version.outputs.value }}
+          name: v${{ steps.package_version.outputs.value }}
+          generate_release_notes: true
+
+      - name: Configure pub.dev credentials
+        run: dart pub token add https://pub.dev --env-var PUB_DEV_PUBLISH_TOKEN
+        env:
+          PUB_DEV_PUBLISH_TOKEN: ${{ secrets.PUB_DEV_PUBLISH_TOKEN }}
+
+      - name: Publish to pub.dev
+        run: dart pub publish --force
+        env:
+          PUB_ENVIRONMENT: github-actions:release

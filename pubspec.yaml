@@ -1,0 +1,24 @@
+name: flutter_esptool
+description: >
+  A Dart/Flutter port of the esptool functionality for ESP8266/ESP32 programming
+  over serial. Provides chip detection, flash read/write, MAC/info queries, and
+  stub-loader support through an injectable serial transport abstraction.
+version: 0.1.1
+homepage: https://github.com/p-vagnozzi-daee/flutter_esptool
+repository: https://github.com/p-vagnozzi-daee/flutter_esptool
+issue_tracker: https://github.com/p-vagnozzi-daee/flutter_esptool/issues
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  platform_serial: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  mocktail: ^1.0.4

@@ -1,0 +1,23 @@
+mode: ContinuousDelivery
+next-version: 0.1.1
+branches:
+  main:
+    regex: ^main$
+    increment: Patch
+    is-main-branch: true
+  develop:
+    regex: ^develop$
+    increment: Minor
+    track-merge-target: true
+  feature:
+    regex: ^features?[/-]
+    increment: Inherit
+  release:
+    regex: ^releases?[/-]
+    increment: Patch
+    is-release-branch: true
+  hotfix:
+    regex: ^hotfix(es)?[/-]
+    increment: Patch
+ignore:
+  sha: []

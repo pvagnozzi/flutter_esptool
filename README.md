@@ -35,26 +35,36 @@ dependencies:
 ```bash
 flutter pub get
 flutter analyze
-flutter test
+flutter test --coverage
 ```
+
+Cross-platform automation lives in [`scripts/`](scripts/README.md):
+
+| Workflow | Windows | Linux | macOS | Report |
+| --- | --- | --- | --- | --- |
+| Setup dev machine | `scripts\\windows\\setup-dev.ps1` | `scripts/linux/setup-dev.sh` | `scripts/macos/setup-dev.zsh` | terminal summary |
+| Run tests | `scripts\\windows\\run-tests.ps1` | `scripts/linux/run-tests.sh` | `scripts/macos/run-tests.zsh` | `reports/tests/<timestamp>/` |
+| Build examples | `scripts\\windows\\build.ps1` | `scripts/linux/build.sh` | `scripts/macos/build.zsh` | `reports/builds/<timestamp>/` |
 
 Single test file:
 
 ```bash
-flutter test test\unit\transport\slip_codec_test.dart
+flutter test test/unit/transport/slip_codec_test.dart
 ```
 
 Single test by name:
 
 ```bash
-flutter test test\unit\transport\slip_codec_test.dart --plain-name "round-trips a payload through encode and decode"
+flutter test test/unit/transport/slip_codec_test.dart --plain-name "round-trips a payload through encode and decode"
 ```
 
 ---
 
 ## 📚 Documentation
 
-- [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) — system architecture and data flow
+- [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) — system architecture, service boundaries, and protocol data flow
+- [`doc/WORKFLOWS.md`](doc/WORKFLOWS.md) — setup/test/build workflows with Mermaid diagrams
+- [`scripts/README.md`](scripts/README.md) — cross-platform automation scripts
 - [`doc/PUBLISHING.md`](doc/PUBLISHING.md) — pub.dev and release process
 - [`doc/GITFLOW.md`](doc/GITFLOW.md) — branching and version strategy
 - [`doc/DEMO_APP.md`](doc/DEMO_APP.md) — demo features and execution
@@ -78,6 +88,17 @@ The demo includes:
 - 🌍 multi-language UI (`en`, `fr`, `es`, `pt`, `de`, `it`, `nl`, `ru`, `ar`, `he`, `zh`, `ja`, `ko`)
 - ✨ splash screen
 - ⚙️ live serial-port workflow for connect, chip detection, MAC, flash info, erase, write, and MD5
+
+## 🗺️ High-level workflow
+
+```mermaid
+flowchart LR
+  UI[Flutter UI / CLI] --> Services[Application services]
+  Services --> Transport[ESP transport]
+  Transport --> Serial[platform_serial]
+  Serial --> Device[ESP ROM bootloader]
+  Services --> Reports[tests/build reports]
+```
 
 ---
 

@@ -19,14 +19,35 @@ This folder contains synchronized, idempotent setup scripts for the example-deve
 
 ## Common behavior
 
-All `setup-dev` scripts are designed to have the same behavior:
+All platform scripts are designed to have synchronized behavior:
 
 - English synopsis/help.
 - Colored output with emojis.
-- Idempotent install/update operations.
-- Elevation only when required.
-- `--help`, `--yes`, `--dry-run`, and `--no-elevate` style options (`-Yes`, `-DryRun`, `-NoElevate` on PowerShell).
+- Idempotent install/update or report generation operations.
+- Elevation only when required by setup/package installation.
+- `--help`, `--yes`, `--dry-run`, and `--no-elevate` style options for setup (`-Yes`, `-DryRun`, `-NoElevate` on PowerShell).
 - Oh My Posh shell startup configured with the `M365Princess` theme using a managed marker block.
+- Reports generated under `reports/`, which is intentionally ignored by git.
+
+## Automation map
+
+```mermaid
+flowchart LR
+  Scripts[scripts/] --> Windows[windows/*.ps1 + install-powershell.cmd]
+  Scripts --> Linux[linux/*.sh]
+  Scripts --> Mac[macos/*.zsh]
+  Windows --> Setup[setup-dev]
+  Linux --> Setup
+  Mac --> Setup
+  Windows --> Tests[run-tests]
+  Linux --> Tests
+  Mac --> Tests
+  Windows --> Build[build]
+  Linux --> Build
+  Mac --> Build
+  Tests --> TestReport[reports/tests/timestamp]
+  Build --> BuildReport[reports/builds/timestamp]
+```
 
 ## Usage
 
@@ -83,6 +104,39 @@ chmod +x scripts/macos/setup-dev.zsh
 ```
 
 Reports are generated under `reports/`, which is intentionally ignored by git.
+
+## Test workflow
+
+```mermaid
+flowchart TD
+  Run[run-tests] --> Root[Root flutter test]
+  Root --> Coverage{coverage enabled?}
+  Coverage -- yes --> Lcov[Copy lcov.info]
+  Coverage -- no --> Cli
+  Lcov --> Cli[CLI example tests]
+  Cli --> Ui[UI example tests]
+  Ui --> Hardware{hardware requested?}
+  Hardware -- yes --> HwTest[Hardware integration test]
+  Hardware -- no --> Summary[summary.md]
+  HwTest --> Summary
+  Summary --> Logs[per-step logs]
+```
+
+## Build workflow
+
+```mermaid
+flowchart TD
+  Run[build] --> Apps{Example apps}
+  Apps --> CLI[esptool_cli]
+  Apps --> UI[esptool_ui]
+  CLI --> Targets[web / desktop / android / apple targets]
+  UI --> Targets
+  Targets --> Host{Supported on host?}
+  Host -- yes --> BuildStep[flutter build]
+  Host -- no --> Skip[record skipped]
+  BuildStep --> Report[summary.md + logs]
+  Skip --> Report
+```
 
 After setup, restart the shell and run:
 

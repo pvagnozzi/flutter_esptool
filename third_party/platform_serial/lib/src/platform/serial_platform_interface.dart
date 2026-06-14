@@ -6,6 +6,9 @@ import '../models/serial_config.dart';
 import '../models/serial_control_signals.dart';
 import '../models/serial_port_info.dart';
 import 'serial_platform_interface_io.dart'
+    if (dart.library.html) 'serial_platform_interface_web.dart'
+    if (dart.library.js) 'serial_platform_interface_web.dart'
+    if (dart.library.js_interop) 'serial_platform_interface_web.dart'
     if (dart.library.ui) 'serial_platform_interface_flutter.dart';
 
 /// Platform interface for serial communication.

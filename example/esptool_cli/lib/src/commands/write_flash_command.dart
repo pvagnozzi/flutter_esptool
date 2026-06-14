@@ -11,8 +11,18 @@ import 'package:flutter_esptool/flutter_esptool.dart';
 class WriteFlashCommand extends Command<void> {
   WriteFlashCommand() {
     argParser
-      ..addOption('port', abbr: 'p', mandatory: true, help: 'Serial port device (required)')
-      ..addOption('address', abbr: 'a', defaultsTo: '0x1000', help: 'Start address')
+      ..addOption(
+        'port',
+        abbr: 'p',
+        mandatory: true,
+        help: 'Serial port device (required)',
+      )
+      ..addOption(
+        'address',
+        abbr: 'a',
+        defaultsTo: '0x1000',
+        help: 'Start address',
+      )
       ..addOption('filename', abbr: 'f', help: 'Binary file to write')
       ..addOption('baud', abbr: 'b', defaultsTo: '115200', help: 'Baud rate')
       ..addFlag('verify', defaultsTo: true, help: 'Verify written data');
@@ -32,7 +42,8 @@ class WriteFlashCommand extends Command<void> {
       defaultValue: 0x1000,
     );
     final filename = argResults?['filename'] as String?;
-    final baud = int.tryParse(argResults?['baud'] as String? ?? '115200') ?? 115200;
+    final baud =
+        int.tryParse(argResults?['baud'] as String? ?? '115200') ?? 115200;
     final verify = argResults?['verify'] as bool? ?? true;
 
     if (filename == null) {
@@ -47,7 +58,9 @@ class WriteFlashCommand extends Command<void> {
     }
 
     final data = await file.readAsBytes();
-    stdout.writeln('Writing ${data.length} bytes to 0x${address.toRadixString(16)}...');
+    stdout.writeln(
+      'Writing ${data.length} bytes to 0x${address.toRadixString(16)}...',
+    );
 
     final config = EspConfig(
       portName: port,
@@ -63,15 +76,13 @@ class WriteFlashCommand extends Command<void> {
       await connectOrExit(connection, config);
 
       final result = await flash.writeFlash(
-        FlashParameters(
-          offset: address,
-          data: data,
-          verify: verify,
-        ),
+        FlashParameters(offset: address, data: data, verify: verify),
       );
 
       if (result.isFailure) {
-        stderr.writeln('Failed to write: ${(result as Failure<void>).error.message}');
+        stderr.writeln(
+          'Failed to write: ${(result as Failure<void>).error.message}',
+        );
         exit(1);
       }
 

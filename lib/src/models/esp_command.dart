@@ -16,6 +16,7 @@ enum EspCommandOpcode {
   readReg(0x0A),
   spiSetParams(0x0B),
   spiAttach(0x0D),
+  readFlashSlow(0x0E),
   changeBaud(0x0F),
   flashDeflBegin(0x10),
   flashDeflData(0x11),

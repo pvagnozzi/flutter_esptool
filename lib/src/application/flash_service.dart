@@ -21,11 +21,9 @@ class FlashService implements FlashServiceInterface {
     required EspTransportInterface transport,
     StubLoaderInterface? stubLoader,
     this.blockSize = 0x4000,
-  })  : _transport = transport,
-        _stubLoader = stubLoader;
+  }) : _transport = transport;
 
   final EspTransportInterface _transport;
-  final StubLoaderInterface? _stubLoader;
 
   /// The flash block size used for chunked writes.
   final int blockSize;
@@ -173,20 +171,97 @@ class FlashService implements FlashServiceInterface {
 
   @override
   Future<Result<Uint8List>> readFlash(FlashReadParameters params) async {
-    if (_stubLoader?.isLoaded != true) {
-      return const Failure<Uint8List>(
-        EspError(
-          type: EspErrorType.unsupportedOperation,
-          message: 'Raw flash reads require a loaded stub flasher',
-        ),
+    try {
+      if (params.offset < 0 || params.size < 0) {
+        return const Failure<Uint8List>(
+          EspError(
+            type: EspErrorType.flashReadFailed,
+            message: 'Flash read requires a non-negative offset and size',
+          ),
+        );
+      }
+
+      await _configureSpiFlashForRomRead();
+
+      const romReadBlockSize = 64;
+      final output = BytesBuilder(copy: false);
+      while (output.length < params.size) {
+        final bytesRead = output.length;
+        final chunkSize = (params.size - bytesRead).clamp(0, romReadBlockSize);
+        final payload = Uint8List(8);
+        final data = ByteData.sublistView(payload);
+        data.setUint32(0, params.offset + bytesRead, Endian.little);
+        data.setUint32(4, chunkSize, Endian.little);
+
+        final response = await _transport.sendCommand(
+          EspCommand(opcode: EspCommandOpcode.readFlashSlow, data: payload),
+        );
+        if (!response.isSuccess) {
+          return const Failure<Uint8List>(
+            EspError(
+              type: EspErrorType.flashReadFailed,
+              message: 'The device rejected a flash read request',
+            ),
+          );
+        }
+        if (response.data.length < chunkSize) {
+          return Failure<Uint8List>(
+            EspError(
+              type: EspErrorType.flashReadFailed,
+              message:
+                  'Short flash read: expected $chunkSize bytes, got ${response.data.length}',
+            ),
+          );
+        }
+
+        output.add(response.data.sublist(0, chunkSize));
+        _emitProgress(
+          params.onProgress,
+          EspProgress(
+            stage: EspProgressStage.reading,
+            current: output.length,
+            total: params.size,
+            message: 'Reading flash data',
+          ),
+        );
+      }
+      return Success<Uint8List>(output.toBytes());
+    } catch (error, stackTrace) {
+      final espError = error is EspError
+          ? error
+          : EspError(
+              type: EspErrorType.flashReadFailed,
+              message: error.toString(),
+              stackTrace: stackTrace,
+            );
+      return Failure<Uint8List>(espError);
+    }
+  }
+
+  Future<void> _configureSpiFlashForRomRead() async {
+    await _transport.sendCommand(
+      EspCommand(opcode: EspCommandOpcode.spiAttach, data: Uint8List(8)),
+    );
+
+    // Same parameter layout used by esptool.py's ROM read path:
+    // fl_id, total_size, block_size, sector_size, page_size, status_mask.
+    final payload = Uint8List(24);
+    final data = ByteData.sublistView(payload);
+    data.setUint32(0, 0, Endian.little);
+    data.setUint32(4, 0x01000000, Endian.little);
+    data.setUint32(8, 0x00010000, Endian.little);
+    data.setUint32(12, 0x00001000, Endian.little);
+    data.setUint32(16, 0x00000100, Endian.little);
+    data.setUint32(20, 0x0000FFFF, Endian.little);
+    final response = await _transport.sendCommand(
+      EspCommand(opcode: EspCommandOpcode.spiSetParams, data: payload),
+    );
+    if (!response.isSuccess) {
+      throw const EspError(
+        type: EspErrorType.flashReadFailed,
+        message: 'The device rejected SPI flash read parameters',
       );
     }
-    return const Failure<Uint8List>(
-      EspError(
-        type: EspErrorType.unsupportedOperation,
-        message: 'Stub flash reads are not implemented in this package version',
-      ),
-    );
   }
 
   @override

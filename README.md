@@ -17,7 +17,7 @@
 - 💾 Flash write/erase flows with optional compression and MD5 verification.
 - 📦 Clean layered architecture (`application`, `domain`, `transport`, `infrastructure`, `models`).
 - 🧪 Hardware-free tests with scripted/mocked transport.
-- 🖥️ Professional multilingual demo app in `example/professional_esptool_demo`.
+- 🖥️ Professional multilingual demo app in `example/esptool_ui`.
 
 ---
 
@@ -67,7 +67,7 @@ flutter test test\unit\transport\slip_codec_test.dart --plain-name "round-trips 
 Run the professional demo:
 
 ```bash
-cd example\professional_esptool_demo
+cd example\esptool_ui
 flutter pub get
 flutter run
 ```
@@ -77,7 +77,7 @@ The demo includes:
 - 🌗 light/dark professional themes
 - 🌍 multi-language UI (`en`, `fr`, `es`, `pt`, `de`, `it`, `nl`, `ru`, `ar`, `he`, `zh`, `ja`, `ko`)
 - ✨ splash screen
-- ⚙️ end-to-end esptool workflow simulation through a scripted transport
+- ⚙️ live serial-port workflow for connect, chip detection, MAC, flash info, erase, write, and MD5
 
 ---
 

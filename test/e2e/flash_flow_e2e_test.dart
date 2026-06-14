@@ -192,6 +192,7 @@ void main() {
               return _successResponse(EspCommandOpcode.flashBegin);
             }),
           EspCommandOpcode.flashData: Queue<EspResponse Function(EspCommand)>()
+            ..add((_) => _successResponse(EspCommandOpcode.flashData))
             ..add((_) => _successResponse(EspCommandOpcode.flashData)),
           EspCommandOpcode.flashEnd: Queue<EspResponse Function(EspCommand)>()
             ..add((_) => _successResponse(EspCommandOpcode.flashEnd)),
@@ -212,6 +213,44 @@ void main() {
       expect(payload.getUint32(4, Endian.little), 2);
       expect(payload.getUint32(8, Endian.little), 8);
       expect(payload.getUint32(12, Endian.little), 0x1000);
+    });
+
+    test('writeFlash pads final block to the announced block size', () async {
+      final flashDataCommands = <EspCommand>[];
+      final transport = ScriptedTransport(
+        handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
+          EspCommandOpcode.flashBegin: Queue<EspResponse Function(EspCommand)>()
+            ..add((_) => _successResponse(EspCommandOpcode.flashBegin)),
+          EspCommandOpcode.flashData: Queue<EspResponse Function(EspCommand)>()
+            ..add((command) {
+              flashDataCommands.add(command);
+              return _successResponse(EspCommandOpcode.flashData);
+            })
+            ..add((command) {
+              flashDataCommands.add(command);
+              return _successResponse(EspCommandOpcode.flashData);
+            }),
+          EspCommandOpcode.flashEnd: Queue<EspResponse Function(EspCommand)>()
+            ..add((_) => _successResponse(EspCommandOpcode.flashEnd)),
+        },
+      );
+      final flash = FlashService(transport: transport, blockSize: 8);
+
+      final result = await flash.writeFlash(
+        FlashParameters(
+          offset: 0x1000,
+          data: Uint8List.fromList(<int>[1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        ),
+      );
+
+      expect(result.isSuccess, isTrue);
+      expect(flashDataCommands, hasLength(2));
+
+      final firstBlock = flashDataCommands[0].data.sublist(16);
+      final secondBlock = flashDataCommands[1].data.sublist(16);
+
+      expect(firstBlock, <int>[1, 2, 3, 4, 5, 6, 7, 8]);
+      expect(secondBlock, <int>[9, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
     });
   });
 

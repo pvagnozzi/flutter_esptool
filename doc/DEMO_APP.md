@@ -2,7 +2,7 @@
 
 The package includes a professional demonstration app:
 
-- Path: `example/professional_esptool_demo`
+- Path: `example/esptool_ui`
 - Theme modes: light and dark
 - Splash screen: built-in startup gate
 - Languages: `en`, `fr`, `es`, `pt`, `de`, `it`, `nl`, `ru`, `ar`, `he`, `zh`, `ja`, `ko`
@@ -11,9 +11,9 @@ The package includes a professional demonstration app:
 Run:
 
 ```bash
-cd example\professional_esptool_demo
+cd example\esptool_ui
 flutter pub get
 flutter run
 ```
 
-The demo uses a scripted transport to simulate protocol responses and keep the app functional without hardware.
+The demo uses the package's real `EspTransport` with `platform_serial`. If no serial plugin or ports are available, the UI stays usable and surfaces that state clearly.

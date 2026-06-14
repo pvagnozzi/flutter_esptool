@@ -33,8 +33,12 @@ class FlashService implements FlashServiceInterface {
   @override
   Future<Result<void>> writeFlash(FlashParameters params) async {
     try {
-      final blocks = FlashImageBuilder.splitIntoBlocks(
+      final paddedData = FlashImageBuilder.buildPaddedImage(
         params.data,
+        alignment: blockSize,
+      );
+      final blocks = FlashImageBuilder.splitIntoBlocks(
+        paddedData,
         params.offset,
         blockSize,
       );
@@ -51,13 +55,13 @@ class FlashService implements FlashServiceInterface {
               : EspCommandOpcode.flashBegin,
           data: params.compress
               ? _buildFlashDeflBeginPayload(
-                  uncompressedBytes: params.data.length,
+                  uncompressedBytes: paddedData.length,
                   compressedBytes: compressedTotalBytes,
                   blockCount: dataBlocks.length,
                   offset: params.offset,
                 )
               : _buildFlashBeginPayload(
-                  totalBytes: params.data.length,
+                  totalBytes: paddedData.length,
                   blockCount: blocks.length,
                   offset: params.offset,
                 ),

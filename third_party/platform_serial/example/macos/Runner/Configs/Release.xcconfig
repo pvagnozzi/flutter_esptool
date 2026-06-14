@@ -1,0 +1,5 @@
+// Copyright (c) 2026 Piergiorgio Vagnozzi.
+// Licensed under the MIT License.
+#include "../../Flutter/Flutter-Release.xcconfig"
+#include "Warnings.xcconfig"
+

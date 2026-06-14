@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FTDI -->
+    <usb-device vendor-id="1027" />
+    <!-- Prolific / PL2303 -->
+    <usb-device vendor-id="1659" />
+    <!-- Silicon Labs / CP210x -->
+    <usb-device vendor-id="4292" />
+</resources>

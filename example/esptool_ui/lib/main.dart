@@ -77,7 +77,8 @@ class _EsptoolUiAppState extends State<EsptoolUiApp> {
         onLocaleChanged: (locale) => setState(() => _locale = locale),
         themeMode: _themeMode,
         splashDuration: widget.splashDuration,
-        serialPortsLoader: widget.serialPortsLoader ?? _defaultSerialPortsLoader,
+        serialPortsLoader:
+            widget.serialPortsLoader ?? _defaultSerialPortsLoader,
         transportFactory: widget.transportFactory,
       ),
     );
@@ -262,7 +263,9 @@ class _HomePageState extends State<_HomePage> {
     final level = switch (entry.type) {
       EspTransportLogType.commandSent => LogLevel.info,
       EspTransportLogType.responseReceived =>
-        response != null && response.isSuccess ? LogLevel.info : LogLevel.warning,
+        response != null && response.isSuccess
+            ? LogLevel.info
+            : LogLevel.warning,
       EspTransportLogType.transportError => LogLevel.error,
     };
     _log(_formatTransportLog(entry), level: level);
@@ -280,22 +283,19 @@ class _HomePageState extends State<_HomePage> {
         entry.rawFrame == null ? '-' : _toHex(entry.rawFrame!, maxBytes: 128);
 
     return switch (entry.type) {
-      EspTransportLogType.commandSent =>
-        '[$timestamp] CMD $opcodeLabel\n'
-            'raw.packet: $rawPacket\n'
-            'raw.frame: $rawFrame\n'
-            'decoded: checksum=0x${entry.command?.checksum.toRadixString(16).padLeft(2, '0') ?? '--'} '
-                'dataLen=${entry.command?.data.length ?? 0}',
-      EspTransportLogType.responseReceived =>
-        '[$timestamp] RSP $opcodeLabel\n'
-            'raw.packet: $rawPacket\n'
-            'raw.frame: $rawFrame\n'
-            'decoded: value=0x${entry.response?.value.toRadixString(16).padLeft(8, '0') ?? '--------'} '
-            'status=${entry.response?.status ?? '-'} error=${entry.response?.error ?? '-'} '
-            'dataLen=${entry.response?.data.length ?? 0}',
-      EspTransportLogType.transportError =>
-        '[$timestamp] ERR $opcodeLabel\n'
-            'message: ${entry.message ?? 'unknown transport error'}',
+      EspTransportLogType.commandSent => '[$timestamp] CMD $opcodeLabel\n'
+          'raw.packet: $rawPacket\n'
+          'raw.frame: $rawFrame\n'
+          'decoded: checksum=0x${entry.command?.checksum.toRadixString(16).padLeft(2, '0') ?? '--'} '
+          'dataLen=${entry.command?.data.length ?? 0}',
+      EspTransportLogType.responseReceived => '[$timestamp] RSP $opcodeLabel\n'
+          'raw.packet: $rawPacket\n'
+          'raw.frame: $rawFrame\n'
+          'decoded: value=0x${entry.response?.value.toRadixString(16).padLeft(8, '0') ?? '--------'} '
+          'status=${entry.response?.status ?? '-'} error=${entry.response?.error ?? '-'} '
+          'dataLen=${entry.response?.data.length ?? 0}',
+      EspTransportLogType.transportError => '[$timestamp] ERR $opcodeLabel\n'
+          'message: ${entry.message ?? 'unknown transport error'}',
     };
   }
 
@@ -390,15 +390,15 @@ class _HomePageState extends State<_HomePage> {
         level: ports.isEmpty ? LogLevel.warning : LogLevel.info,
       );
     } on SerialError catch (error) {
-      final pluginUnavailable = error.type == SerialErrorType.platformUnavailable;
+      final pluginUnavailable =
+          error.type == SerialErrorType.platformUnavailable;
       final shouldDisconnect = _transport.isOpen;
 
       if (mounted) {
         setState(() {
           _serialPluginAvailable = !pluginUnavailable ? true : false;
-          _serialStatusMessage = pluginUnavailable
-              ? _t('serialPluginUnavailable')
-              : error.message;
+          _serialStatusMessage =
+              pluginUnavailable ? _t('serialPluginUnavailable') : error.message;
           _availablePorts = const <SerialPortInfo>[];
           _selectedPortName = null;
           _connected = false;
@@ -481,8 +481,8 @@ class _HomePageState extends State<_HomePage> {
         setState(() => _chip = chip.description);
         _log('Chip detected: ${chip.description}');
       },
-      (error) =>
-          _log('Chip detection failed: ${error.message}', level: LogLevel.error),
+      (error) => _log('Chip detection failed: ${error.message}',
+          level: LogLevel.error),
     );
   }
 
@@ -496,7 +496,8 @@ class _HomePageState extends State<_HomePage> {
         setState(() => _mac = mac);
         _log('MAC: $mac');
       },
-      (error) => _log('MAC read failed: ${error.message}', level: LogLevel.error),
+      (error) =>
+          _log('MAC read failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -557,25 +558,52 @@ class _HomePageState extends State<_HomePage> {
     );
   }
 
-  Widget _buildLanguageChip(Locale locale) {
+  static const double _compactLayoutBreakpoint = 720;
+
+  Widget _buildLanguageChip(Locale locale, {bool compact = false}) {
+    final flag = ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: Image.asset(
+        AppStrings.languageFlagAsset(locale),
+        width: 22,
+        height: 16,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Icon(
+          Icons.flag_rounded,
+          size: 18,
+        ),
+      ),
+    );
+
+    if (compact) {
+      return flag;
+    }
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: Image.asset(
-            AppStrings.languageFlagAsset(locale),
-            width: 22,
-            height: 16,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const Icon(
-              Icons.flag_rounded,
-              size: 18,
-            ),
-          ),
-        ),
+        flag,
         const SizedBox(width: 8),
         Text(AppStrings.languageDisplayName(locale)),
+      ],
+    );
+  }
+
+  Widget _buildThemeModeItem({
+    required IconData icon,
+    required String label,
+    bool compact = false,
+  }) {
+    if (compact) {
+      return Icon(icon);
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon),
+        const SizedBox(width: 8),
+        Text(label),
       ],
     );
   }
@@ -583,213 +611,351 @@ class _HomePageState extends State<_HomePage> {
   @override
   Widget build(BuildContext context) {
     String t(String key) => AppStrings.t(widget.locale, key);
+    final themeModeItems = <({ThemeMode mode, IconData icon, String label})>[
+      (
+        mode: ThemeMode.system,
+        icon: Icons.brightness_auto_rounded,
+        label: t('system'),
+      ),
+      (
+        mode: ThemeMode.light,
+        icon: Icons.light_mode_rounded,
+        label: t('light')
+      ),
+      (mode: ThemeMode.dark, icon: Icons.dark_mode_rounded, label: t('dark')),
+    ];
+    final currentThemeModeItem = themeModeItems.firstWhere(
+      (item) => item.mode == widget.themeMode,
+    );
 
-    return Scaffold(
+    final portDropdown = DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        isExpanded: true,
+        hint: Text(
+          _serialPluginAvailable ? t('noSerialPorts') : t('serialUnavailable'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        selectedItemBuilder: (context) => _availablePorts
+            .map(
+              (port) => Text(
+                _describePort(port),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )
+            .toList(),
+        value: _selectedPortName,
+        onChanged: !_serialPluginAvailable || _availablePorts.isEmpty
+            ? null
+            : (value) {
+                if (value != null) {
+                  _selectPort(value);
+                }
+              },
+        items: _availablePorts
+            .map(
+              (port) => DropdownMenuItem<String>(
+                value: port.portName,
+                child: Text(
+                  _describePort(port),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    final serialStatus = _serialStatusMessage == null
+        ? null
+        : Text(
+            _serialStatusMessage!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _serialPluginAvailable
+                      ? Colors.amber.shade800
+                      : Theme.of(context).colorScheme.error,
+                ),
+          );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompactLayout =
+            constraints.maxWidth < _compactLayoutBreakpoint;
+
+        return Scaffold(
       appBar: AppBar(
-        title: Text(t('appTitle')),
-        actions: [
-          DropdownButtonHideUnderline(
-            child: DropdownButton<Locale>(
-              value: widget.locale,
-              selectedItemBuilder: (context) => AppStrings.supportedLocales
-                  .map(_buildLanguageChip)
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  widget.onLocaleChanged(value);
-                }
-              },
-              items: AppStrings.supportedLocales
-                  .map(
-                    (locale) => DropdownMenuItem(
-                      value: locale,
-                      child: _buildLanguageChip(locale),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<ThemeMode>(
-              value: widget.themeMode,
-              onChanged: (value) {
-                if (value != null) {
-                  widget.onThemeChanged(value);
-                }
-              },
-              items: [
-                DropdownMenuItem(
-                  value: ThemeMode.system,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.brightness_auto_rounded),
-                      const SizedBox(width: 8),
-                      Text(t('system')),
-                    ],
+        leading: isCompactLayout ? const Icon(Icons.memory_rounded) : null,
+        title: Text(
+          t('appTitle'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: isCompactLayout
+            ? [
+                PopupMenuButton<Locale>(
+                  padding: EdgeInsets.zero,
+                  onSelected: widget.onLocaleChanged,
+                  itemBuilder: (context) => AppStrings.supportedLocales
+                      .map(
+                        (locale) => PopupMenuItem(
+                          value: locale,
+                          child: _buildLanguageChip(locale),
+                        ),
+                      )
+                      .toList(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: _buildLanguageChip(widget.locale, compact: true),
                   ),
                 ),
-                DropdownMenuItem(
-                  value: ThemeMode.light,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.light_mode_rounded),
-                      const SizedBox(width: 8),
-                      Text(t('light')),
-                    ],
+                PopupMenuButton<ThemeMode>(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(currentThemeModeItem.icon),
+                  onSelected: widget.onThemeChanged,
+                  itemBuilder: (context) => themeModeItems
+                      .map(
+                        (item) => PopupMenuItem(
+                          value: item.mode,
+                          child: _buildThemeModeItem(
+                            icon: item.icon,
+                            label: item.label,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(width: 8),
+              ]
+            : [
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<Locale>(
+                    value: widget.locale,
+                    selectedItemBuilder: (context) => AppStrings.supportedLocales
+                        .map(
+                          (locale) => _buildLanguageChip(locale),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        widget.onLocaleChanged(value);
+                      }
+                    },
+                    items: AppStrings.supportedLocales
+                        .map(
+                          (locale) => DropdownMenuItem(
+                            value: locale,
+                            child: _buildLanguageChip(locale),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
-                DropdownMenuItem(
-                  value: ThemeMode.dark,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.dark_mode_rounded),
-                      const SizedBox(width: 8),
-                      Text(t('dark')),
-                    ],
+                const SizedBox(width: 8),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<ThemeMode>(
+                    value: widget.themeMode,
+                    selectedItemBuilder: (context) => themeModeItems
+                        .map(
+                          (item) => _buildThemeModeItem(
+                            icon: item.icon,
+                            label: item.label,
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        widget.onThemeChanged(value);
+                      }
+                    },
+                    items: themeModeItems
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item.mode,
+                            child: _buildThemeModeItem(
+                              icon: item.icon,
+                              label: item.label,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
+                const SizedBox(width: 8),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(t('subtitle'), style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
+            Flexible(
+              fit: FlexFit.loose,
+              child: SingleChildScrollView(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Icon(Icons.usb_rounded),
+                    Text(
+                      t('subtitle'),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t('serialPorts'),
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              hint: Text(
-                                _serialPluginAvailable
-                                    ? t('noSerialPorts')
-                                    : t('serialUnavailable'),
-                              ),
-                              value: _selectedPortName,
-                              onChanged: !_serialPluginAvailable ||
-                                      _availablePorts.isEmpty
-                                  ? null
-                                  : (value) {
-                                      if (value != null) {
-                                        _selectPort(value);
-                                      }
-                                    },
-                              items: _availablePorts
-                                  .map(
-                                    (port) => DropdownMenuItem<String>(
-                                      value: port.portName,
-                                      child: Text(_describePort(port)),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                          if (_serialStatusMessage != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              _serialStatusMessage!,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: _serialPluginAvailable
-                                        ? Colors.amber.shade800
-                                        : Theme.of(context).colorScheme.error,
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: isCompactLayout
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.usb_rounded),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          t('serialPorts'),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelLarge,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: t('refreshPorts'),
+                                        onPressed: _loadingPorts
+                                            ? null
+                                            : _refreshPorts,
+                                        icon: _loadingPorts
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                ),
+                                              )
+                                            : const Icon(Icons.refresh_rounded),
+                                      ),
+                                    ],
                                   ),
-                            ),
-                          ],
-                        ],
+                                  portDropdown,
+                                  if (serialStatus != null) ...[
+                                    const SizedBox(height: 8),
+                                    serialStatus,
+                                  ],
+                                ],
+                              )
+                            : Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 8),
+                                    child: Icon(Icons.usb_rounded),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          t('serialPorts'),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelLarge,
+                                        ),
+                                        portDropdown,
+                                        if (serialStatus != null) ...[
+                                          const SizedBox(height: 8),
+                                          serialStatus,
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    tooltip: t('refreshPorts'),
+                                    onPressed:
+                                        _loadingPorts ? null : _refreshPorts,
+                                    icon: _loadingPorts
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.refresh_rounded),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: t('refreshPorts'),
-                      onPressed: _loadingPorts ? null : _refreshPorts,
-                      icon: _loadingPorts
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.refresh_rounded),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        FilledButton(
+                          onPressed: _canConnect ? _connect : null,
+                          child: Text(t('connect')),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: _connected ? _detectChip : null,
+                          child: Text(t('detectChip')),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: _connected ? _readMac : null,
+                          child: Text(t('readMac')),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: _connected ? _flashInfo : null,
+                          child: Text(t('flashInfo')),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: _connected ? _writeFlash : null,
+                          child: Text(t('writeFlash')),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: _connected ? _eraseFlash : null,
+                          child: Text(t('eraseFlash')),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: _connected ? _readMd5 : null,
+                          child: Text(t('readMd5')),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 20),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: isCompactLayout
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('${t('chip')}: $_chip'),
+                                  const SizedBox(height: 8),
+                                  Text('${t('mac')}: $_mac'),
+                                  const SizedBox(height: 8),
+                                  Text('${t('flash')}: $_flash'),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(child: Text('${t('chip')}: $_chip')),
+                                  Expanded(child: Text('${t('mac')}: $_mac')),
+                                  Expanded(
+                                      child: Text('${t('flash')}: $_flash')),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                FilledButton(
-                  onPressed: _canConnect ? _connect : null,
-                  child: Text(t('connect')),
-                ),
-                FilledButton.tonal(
-                  onPressed: _connected ? _detectChip : null,
-                  child: Text(t('detectChip')),
-                ),
-                FilledButton.tonal(
-                  onPressed: _connected ? _readMac : null,
-                  child: Text(t('readMac')),
-                ),
-                FilledButton.tonal(
-                  onPressed: _connected ? _flashInfo : null,
-                  child: Text(t('flashInfo')),
-                ),
-                FilledButton.tonal(
-                  onPressed: _connected ? _writeFlash : null,
-                  child: Text(t('writeFlash')),
-                ),
-                FilledButton.tonal(
-                  onPressed: _connected ? _eraseFlash : null,
-                  child: Text(t('eraseFlash')),
-                ),
-                FilledButton.tonal(
-                  onPressed: _connected ? _readMd5 : null,
-                  child: Text(t('readMd5')),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Expanded(child: Text('${t('chip')}: $_chip')),
-                    Expanded(child: Text('${t('mac')}: $_mac')),
-                    Expanded(child: Text('${t('flash')}: $_flash')),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             Text(t('logs'), style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Expanded(
@@ -830,6 +996,8 @@ class _HomePageState extends State<_HomePage> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 

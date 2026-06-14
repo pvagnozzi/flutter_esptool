@@ -21,7 +21,9 @@ enum EspCommandOpcode {
   flashDeflData(0x11),
   flashDeflEnd(0x12),
   flashMd5(0x13),
-  getSecurityInfo(0x14);
+  getSecurityInfo(0x14),
+  eraseFlash(0xD0),
+  eraseRegion(0xD1);
 
   const EspCommandOpcode(this.value);
 

@@ -23,12 +23,23 @@ void main() {
     expect(transport.seenSpiAttach, isTrue);
     expect(transport.seenWriteReg, isTrue);
   });
+
+  test('getMac formats ESP32 EFUSE words like esptool.py', () async {
+    final transport = _ScriptedInfoTransport();
+    final info = InfoService(transport: transport);
+
+    final result = await info.getMac();
+
+    expect(result.isSuccess, isTrue);
+    expect((result as Success<String>).value, '10:06:1c:ee:9a:70');
+  });
 }
 
 class _ScriptedInfoTransport implements EspTransportInterface {
   static const int _chipMagicRegister = 0x40001000;
-  static const int _esp32MacLowRegister = 0x6001A044;
-  static const int _esp32MacHighRegister = 0x6001A048;
+  static const int _esp32EfuseMacWord1Register = 0x3FF5A004;
+  static const int _esp32EfuseMacWord2Register = 0x3FF5A008;
+  static const int _esp32EfuseMacPrimeRegister = 0x3FF5A00C;
   static const int _spiBase = 0x3FF42000;
   static const int _spiCmdReg = _spiBase + 0x00;
   static const int _spiUsrReg = _spiBase + 0x1C;
@@ -38,8 +49,9 @@ class _ScriptedInfoTransport implements EspTransportInterface {
 
   final Map<int, int> _registers = <int, int>{
     _chipMagicRegister: 0x00F01D83,
-    _esp32MacLowRegister: 0x33445566,
-    _esp32MacHighRegister: 0x00001122,
+    _esp32EfuseMacWord1Register: 0x1CEE9A70,
+    _esp32EfuseMacWord2Register: 0x00021006,
+    _esp32EfuseMacPrimeRegister: 0x0000A200,
     _spiUsrReg: 0,
     _spiUsr2Reg: 0,
     _spiW0Reg: 0x001840EF,

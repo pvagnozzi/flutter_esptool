@@ -4,7 +4,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:args/command_runner.dart';
-import 'package:flutter_esptool/flutter_esptool.dart';
 
 class VersionCommand extends Command<void> {
   @override

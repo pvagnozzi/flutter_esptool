@@ -3,13 +3,14 @@
 
 import 'dart:async';
 import 'dart:io';
+
 import 'package:args/command_runner.dart';
-import 'package:flutter_esptool/flutter_esptool.dart';
+import 'package:esptool_cli/src/commands/command_utils.dart';
 
 class ReadFlashCommand extends Command<void> {
   ReadFlashCommand() {
     argParser
-      ..addOption('port', abbr: 'p', defaultsTo: 'COM1', help: 'Serial port device')
+      ..addOption('port', abbr: 'p', mandatory: true, help: 'Serial port device (required)')
       ..addOption('address', abbr: 'a', defaultsTo: '0x0', help: 'Start address')
       ..addOption('length', abbr: 'l', defaultsTo: '0x100', help: 'Length in bytes')
       ..addOption('filename', abbr: 'f', help: 'Output filename')
@@ -24,6 +25,7 @@ class ReadFlashCommand extends Command<void> {
 
   @override
   FutureOr<void> run() async {
+    requirePort(this);
     stderr.writeln('Error: read_flash requires stub loader support (not yet implemented)');
     exit(1);
   }

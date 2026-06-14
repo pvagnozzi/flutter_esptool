@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+YES=0
+DRY_RUN=0
+SKIP_ANDROID_STUDIO=0
+SKIP_OH_MY_POSH=0
+FLUTTER_DIR="${HOME}/development/flutter"
+
+bold='\033[1m'; green='\033[32m'; yellow='\033[33m'; red='\033[31m'; cyan='\033[36m'; reset='\033[0m'
+
+usage() {
+  cat <<'EOF'
+🚀 setup-devenv — idempotent Linux development environment setup
+
+Synopsis:
+  scripts/linux/setup-devenv [options]
+
+Options:
+  --yes, -y                 Run without interactive confirmations.
+  --dry-run                 Print actions without changing the system.
+  --flutter-dir PATH        Flutter SDK location (default: ~/development/flutter).
+  --skip-android-studio     Do not install Android Studio.
+  --skip-oh-my-posh         Do not install or configure Oh My Posh.
+  --help, -h                Show this help.
+EOF
+}
+
+log() { printf "%b%s%b\n" "$cyan" "$1" "$reset"; }
+ok() { printf "%b✅ %s%b\n" "$green" "$1" "$reset"; }
+warn() { printf "%b⚠️  %s%b\n" "$yellow" "$1" "$reset"; }
+fail() { printf "%b❌ %s%b\n" "$red" "$1" "$reset"; exit 1; }
+run() { if [[ "$DRY_RUN" == 1 ]]; then warn "dry-run: $*"; else eval "$@"; fi; }
+have() { command -v "$1" >/dev/null 2>&1; }
+confirm() { [[ "$YES" == 1 ]] && return 0; read -r -p "$1 [y/N] " reply; [[ "$reply" =~ ^[Yy]$ ]]; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes|-y) YES=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --flutter-dir) FLUTTER_DIR="$2"; shift ;;
+    --skip-android-studio) SKIP_ANDROID_STUDIO=1 ;;
+    --skip-oh-my-posh) SKIP_OH_MY_POSH=1 ;;
+    --help|-h) usage; exit 0 ;;
+    *) fail "Unknown option: $1" ;;
+  esac
+  shift
+done
+
+install_package() {
+  local package="$1"
+  if have apt-get; then run "sudo apt-get update && sudo apt-get install -y $package"
+  elif have dnf; then run "sudo dnf install -y $package"
+  elif have pacman; then run "sudo pacman -Sy --noconfirm $package"
+  else warn "No supported package manager found. Install $package manually."
+  fi
+}
+
+printf "%b%s%b\n" "$bold" "🚀 platform_serial Linux setup" "$reset"
+
+if have git; then ok "Git already installed: $(git --version)"; else log "📦 Installing Git"; install_package git; fi
+
+if [[ -x "$FLUTTER_DIR/bin/flutter" ]]; then
+  ok "Flutter already installed at $FLUTTER_DIR"
+elif confirm "Install Flutter SDK into $FLUTTER_DIR?"; then
+  run "mkdir -p '$(dirname "$FLUTTER_DIR")'"
+  run "git clone https://github.com/flutter/flutter.git -b stable '$FLUTTER_DIR'"
+fi
+
+case ":$PATH:" in *":$FLUTTER_DIR/bin:"*) ok "Flutter is on PATH" ;; *)
+  warn "Add Flutter to PATH: export PATH=\"$FLUTTER_DIR/bin:\$PATH\""
+  ;;
+esac
+
+if [[ "$SKIP_ANDROID_STUDIO" == 0 ]]; then
+  if have studio || [[ -d /opt/android-studio ]]; then
+    ok "Android Studio appears to be installed"
+  elif have snap && confirm "Install Android Studio via snap?"; then
+    run "sudo snap install android-studio --classic"
+  else
+    warn "Install Android Studio manually from https://developer.android.com/studio"
+  fi
+fi
+
+if [[ "$SKIP_OH_MY_POSH" == 0 ]]; then
+  if have oh-my-posh; then ok "Oh My Posh already installed"; else log "🎨 Installing Oh My Posh"; run "curl -s https://ohmyposh.dev/install.sh | bash -s"; fi
+  mkdir -p "$HOME/.poshthemes"
+  THEME="$HOME/.poshthemes/M365Princess.omp.json"
+  if [[ ! -f "$THEME" ]]; then
+    run "curl -fsSL -o '$THEME' https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/M365Princess.omp.json"
+  fi
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    marker="# platform_serial oh-my-posh"
+    if [[ -f "$rc" ]] && grep -Fq "$marker" "$rc"; then ok "Oh My Posh already configured in $rc"; elif [[ -f "$rc" ]]; then
+      run "printf '\n%s\neval \"\$(oh-my-posh init %s --config %s)\"\n' '$marker' '$(basename "$rc" | sed 's/^\.//')' '$THEME' >> '$rc'"
+    fi
+  done
+fi
+
+if [[ -x "$FLUTTER_DIR/bin/flutter" ]]; then run "'$FLUTTER_DIR/bin/flutter' doctor"; fi
+ok "Linux development environment setup complete"

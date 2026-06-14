@@ -7,7 +7,12 @@ import 'package:flutter_esptool/flutter_esptool.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('renders app shell with flag asset and available port', (tester) async {
+  testWidgets(
+      'renders app shell on wide screens with flag asset and available port',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(1100, 900));
+
     await tester.pumpWidget(
       EsptoolUiApp(
         splashDuration: Duration.zero,
@@ -25,18 +30,22 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
+    expect(tester.takeException(), isNull);
     expect(find.textContaining('firmware toolkit'), findsNothing);
     expect(find.text('Connect'), findsOneWidget);
     expect(find.textContaining('COM7'), findsOneWidget);
 
     final englishFlag = find.byWidgetPredicate(
-      (widget) => widget is Image &&
+      (widget) =>
+          widget is Image &&
           widget.image is AssetImage &&
           (widget.image as AssetImage).assetName == 'assets/flags/en.png',
     );
     expect(englishFlag, findsWidgets);
 
-    final connectButton = tester.widget<FilledButton>(find.byType(FilledButton).first);
+    final connectButton = tester.widget<FilledButton>(
+      find.byType(FilledButton).first,
+    );
     expect(connectButton.onPressed, isNotNull);
   });
 }
@@ -65,6 +74,7 @@ class _IdleTransport implements EspTransportInterface {
 
   @override
   Future<EspResponse> sendCommand(EspCommand command, {Duration? timeout}) {
-    throw UnimplementedError('Transport commands are not exercised in widget tests.');
+    throw UnimplementedError(
+        'Transport commands are not exercised in widget tests.');
   }
 }

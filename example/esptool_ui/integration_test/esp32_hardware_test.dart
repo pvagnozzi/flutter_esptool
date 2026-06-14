@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Piergiorgio Vagnozzi
 // Licensed under the MIT License.
 
-import 'dart:typed_data';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_esptool/flutter_esptool.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,11 +10,32 @@ import 'package:integration_test/integration_test.dart';
 
 const bool _runHardwareTests =
     bool.fromEnvironment('RUN_ESP_HARDWARE_TESTS', defaultValue: false);
-const String _serialPort =
-    String.fromEnvironment('ESP_PORT', defaultValue: 'COM22');
+const String _serialPortValue = String.fromEnvironment('ESP_PORT');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  if (!_runHardwareTests) {
+    testWidgets(
+      'ESP32 hardware checks are disabled by default',
+      (_) async {},
+      skip: true,
+    );
+    return;
+  }
+
+  final serialPort = _serialPortValue.trim();
+  if (serialPort.isEmpty) {
+    testWidgets('requires explicit ESP_PORT when hardware tests are enabled', (
+      _,
+    ) async {
+      fail(
+        'Missing ESP_PORT. Re-run with '
+        '--dart-define=ESP_PORT=<serial port>.',
+      );
+    });
+    return;
+  }
 
   testWidgets(
     'executes non-destructive ESP32 hardware checks on the configured serial port',
@@ -42,7 +63,7 @@ void main() {
             '-m',
             'esptool',
             '--port',
-            _serialPort,
+            serialPort,
             '--before',
             'default-reset',
             '--after',
@@ -59,16 +80,16 @@ void main() {
         final availablePorts = await SerialManager().getAvailablePorts();
         expect(
           availablePorts.any(
-            (port) => port.portName.toUpperCase() == _serialPort.toUpperCase(),
+            (port) => port.portName.toUpperCase() == serialPort.toUpperCase(),
           ),
           isTrue,
-          reason: 'Configured port $_serialPort was not found in available ports',
+          reason: 'Configured port $serialPort was not found in available ports',
         );
 
         final connectResult = await connection.connect(
-          const EspConfig(
-            portName: _serialPort,
-            timeout: Duration(seconds: 5),
+          EspConfig(
+            portName: serialPort,
+            timeout: const Duration(seconds: 5),
             syncRetries: 16,
           ),
         );
@@ -118,6 +139,5 @@ void main() {
         await connection.disconnect();
       }
     },
-    skip: !_runHardwareTests,
   );
 }

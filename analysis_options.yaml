@@ -4,6 +4,7 @@ analyzer:
   exclude:
     - build/**
     - example/**
+    - third_party/**
   language:
     strict-casts: true
     strict-inference: true

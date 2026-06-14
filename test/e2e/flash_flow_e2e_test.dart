@@ -19,9 +19,9 @@ void main() {
             ..add((_) =>
                 _successResponse(EspCommandOpcode.readReg, value: 0x00F01D83))
             ..add((_) =>
-                _successResponse(EspCommandOpcode.readReg, value: 0x33445566))
+                _successResponse(EspCommandOpcode.readReg, value: 0x00001122))
             ..add((_) =>
-                _successResponse(EspCommandOpcode.readReg, value: 0x00001122)),
+                _successResponse(EspCommandOpcode.readReg, value: 0x33445566)),
           EspCommandOpcode.flashBegin: Queue<EspResponse Function(EspCommand)>()
             ..add((_) => _successResponse(EspCommandOpcode.flashBegin)),
           EspCommandOpcode.flashData: Queue<EspResponse Function(EspCommand)>()
@@ -260,11 +260,14 @@ void main() {
         handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
             // Magic register read (0x40001000) - ESP32 magic
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x00F01D83))
-            // MAC low register read
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x33445566))
-            // MAC high register read
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x00001122)),
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x00F01D83))
+            // EFUSE word 2 provides the upper two MAC bytes for ESP32
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x00001122))
+            // EFUSE word 1 provides the lower four MAC bytes for ESP32
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x33445566)),
         },
       );
       final detection = ChipDetectionService(transport);
@@ -283,11 +286,14 @@ void main() {
         handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
             // ESP32-S3 magic value: 0x00000009
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x00000009))
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x00000009))
             // MAC low
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x11223344))
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x11223344))
             // MAC high
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x0000AABB)),
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x0000AABB)),
         },
       );
       final detection = ChipDetectionService(transport);
@@ -304,11 +310,14 @@ void main() {
       final transport = ScriptedTransport(
         handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x00F01D83))
-            // MAC low: 0xAABBCCDD
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0xAABBCCDD))
-            // MAC high: 0x0000EEFF
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x0000EEFF)),
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x00F01D83))
+            // EFUSE word 2: top two MAC bytes after CRC trimming
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x0000EEFF))
+            // EFUSE word 1: lower four MAC bytes
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0xAABBCCDD)),
         },
       );
       final detection = ChipDetectionService(transport);
@@ -317,7 +326,8 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       final chipInfo = (result as Success<EspChipInfo>).value;
-      // Expected format: bytes = [high>>8, high&0xFF, low>>24, low>>16, low>>8, low&0xFF]
+      // Expected format on ESP32 uses EFUSE words 2 and 1 packed big-endian,
+      // then trims the leading 2-byte CRC region.
       // = [0xEE, 0xFF, 0xAA, 0xBB, 0xCC, 0xDD] = ee:ff:aa:bb:cc:dd
       expect(chipInfo.macAddress, 'ee:ff:aa:bb:cc:dd');
     });
@@ -327,11 +337,14 @@ void main() {
         handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
             // ESP8266 magic: 0xFFF0C101
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0xFFF0C101))
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0xFFF0C101))
             // ESP8266 MAC low at 0x3FF00050
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x11223344))
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x11223344))
             // ESP8266 MAC high at 0x3FF00054
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x0000AABB)),
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x0000AABB)),
         },
       );
       final detection = ChipDetectionService(transport);
@@ -347,7 +360,8 @@ void main() {
       final transport = ScriptedTransport(
         handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0xDEADBEEF)),
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0xDEADBEEF)),
         },
       );
       final detection = ChipDetectionService(transport);
@@ -368,11 +382,14 @@ void main() {
             ..add((_) => _successResponse(EspCommandOpcode.sync)),
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
             // Step 1: Read magic (0x40001000) - ESP32-S2
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x000007C6))
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x000007C6))
             // Step 2: Read MAC low (0x60001A044)
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x12345678))
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x12345678))
             // Step 3: Read MAC high (0x60001A048)
-            ..add((_) => _successResponse(EspCommandOpcode.readReg, value: 0x0000ABCD)),
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x0000ABCD)),
         },
       );
       final connection = ConnectionService(transport);
@@ -508,6 +525,13 @@ class SplitResponseSerialPort implements SerialPortInterface {
 
   @override
   Future<void> resetBuffers() async {}
+
+  @override
+  Future<SerialControlSignals> getControlSignals() async =>
+      const SerialControlSignals();
+
+  @override
+  Future<bool> getCts() async => false;
 
   @override
   Future<void> setDtr(bool enabled) async {}

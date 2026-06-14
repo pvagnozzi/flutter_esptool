@@ -19,6 +19,13 @@ class ChipDetectionService implements ChipDetectorInterface {
   static const int _chipMagicRegister = 0x40001000;
   static const int _esp8266MacLowRegister = 0x3FF00050;
   static const int _esp8266MacHighRegister = 0x3FF00054;
+  static const int _esp32EfuseBaseRegister = 0x3FF5A000;
+  static const int _esp32EfuseMacWord1Register =
+      _esp32EfuseBaseRegister + 0x004;
+  static const int _esp32EfuseMacWord2Register =
+      _esp32EfuseBaseRegister + 0x008;
+  static const int _esp32EfuseMacPrimeRegister =
+      _esp32EfuseBaseRegister + 0x00C;
   static const int _esp32MacLowRegister = 0x6001A044;
   static const int _esp32MacHighRegister = 0x6001A048;
 
@@ -75,6 +82,24 @@ class ChipDetectionService implements ChipDetectorInterface {
   }
 
   Future<String> _readMacAddress(ChipFamily family) async {
+    if (family == ChipFamily.esp32) {
+      // Match esptool.py's ESP32 EFUSE flow. Some ESP32 ROM/USB-serial
+      // combinations have been observed to return zero for the MAC words when
+      // the BLK0 EFUSE cache is read immediately after chip detection; touching
+      // another BLK0 word first mirrors esptool's feature/revision reads and
+      // makes the following MAC word reads reliable.
+      await _readRegister(_esp32EfuseMacPrimeRegister);
+      final word2 = await _readRegister(_esp32EfuseMacWord2Register);
+      final word1 = await _readRegister(_esp32EfuseMacWord1Register);
+      final words = ByteData(8)
+        ..setUint32(0, word2, Endian.big)
+        ..setUint32(4, word1, Endian.big);
+      final bytes = words.buffer.asUint8List().sublist(2, 8);
+      if (bytes.any((byte) => byte != 0)) {
+        return _formatMac(bytes);
+      }
+    }
+
     final lowAddress = family == ChipFamily.esp8266
         ? _esp8266MacLowRegister
         : _esp32MacLowRegister;
@@ -92,6 +117,10 @@ class ChipDetectionService implements ChipDetectorInterface {
       (low >> 8) & 0xFF,
       low & 0xFF,
     ];
+    return _formatMac(bytes);
+  }
+
+  String _formatMac(List<int> bytes) {
     return bytes
         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
         .join(':');

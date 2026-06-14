@@ -3,14 +3,15 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+
 import 'package:args/command_runner.dart';
+import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class WriteFlashCommand extends Command<void> {
   WriteFlashCommand() {
     argParser
-      ..addOption('port', abbr: 'p', defaultsTo: 'COM1', help: 'Serial port device')
+      ..addOption('port', abbr: 'p', mandatory: true, help: 'Serial port device (required)')
       ..addOption('address', abbr: 'a', defaultsTo: '0x1000', help: 'Start address')
       ..addOption('filename', abbr: 'f', help: 'Binary file to write')
       ..addOption('baud', abbr: 'b', defaultsTo: '115200', help: 'Baud rate')
@@ -25,8 +26,11 @@ class WriteFlashCommand extends Command<void> {
 
   @override
   FutureOr<void> run() async {
-    final port = argResults?['port'] as String? ?? 'COM1';
-    final address = int.tryParse((argResults?['address'] as String? ?? '0x1000').replaceFirst('0x', ''), radix: 16) ?? 0x1000;
+    final port = requirePort(this);
+    final address = parseFlexibleInt(
+      argResults?['address'] as String? ?? '0x1000',
+      defaultValue: 0x1000,
+    );
     final filename = argResults?['filename'] as String?;
     final baud = int.tryParse(argResults?['baud'] as String? ?? '115200') ?? 115200;
     final verify = argResults?['verify'] as bool? ?? true;
@@ -51,12 +55,12 @@ class WriteFlashCommand extends Command<void> {
       timeout: const Duration(seconds: 5),
       syncRetries: 16,
     );
-    final transport = EspTransport(serial: PlatformSerialPort(port));
+    final transport = EspTransport();
     final flash = FlashService(transport: transport);
 
     try {
       final connection = ConnectionService(transport);
-      await connection.connect(config);
+      await connectOrExit(connection, config);
 
       final result = await flash.writeFlash(
         FlashParameters(
@@ -72,10 +76,11 @@ class WriteFlashCommand extends Command<void> {
       }
 
       stdout.writeln('Write complete!');
-      await transport.close();
     } catch (e) {
       stderr.writeln('Error: $e');
       exit(1);
+    } finally {
+      await transport.close();
     }
   }
 }

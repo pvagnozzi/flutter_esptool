@@ -1,0 +1,91 @@
+Run your Flutter app on an attached device.
+
+Global options:
+-h, --help                  Print this usage information.
+-v, --verbose               Noisy logging, including all shell commands executed.
+                            If used with "--help", shows hidden options. If used with "flutter doctor", shows additional diagnostic information. (Use "-vv" to force verbose logging in those cases.)
+-d, --device-id             Target device id or name (prefixes allowed).
+    --version               Reports the version of this tool.
+    --enable-analytics      Enable telemetry reporting each time a flutter or dart command runs.
+    --disable-analytics     Disable telemetry reporting each time a flutter or dart command runs, until it is re-enabled.
+    --suppress-analytics    Suppress analytics reporting for the current CLI invocation.
+
+Usage: flutter run [arguments]
+-h, --help                                                   Print this usage information.
+    --debug                                                  Build a debug version of your app (default mode).
+    --profile                                                Build a version of your app specialized for performance profiling.
+    --release                                                Build a release version of your app.
+-D, --dart-define=<foo=bar>                                  Additional key-value pairs that will be available as constants from the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors.
+                                                             Multiple defines can be passed by repeating "--dart-define" multiple times.
+    --dart-define-from-file=<use-define-config.json|.env>    The path of a .json or .env file containing key-value pairs that will be available as environment variables.
+                                                             These can be accessed using the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors.
+                                                             Multiple defines can be passed by repeating "--dart-define-from-file" multiple times.
+                                                             Entries from "--dart-define" with identical keys take precedence over entries from these files.
+    --web-define=<API_URL=https://api.example.com>           Additional key-value pairs that will be available as template variables in web/index.html and web/flutter_bootstrap.js files during development and build.
+                                                             Variables are replaced in the format {{VARIABLE_NAME}}.
+                                                             Multiple defines can be passed by repeating "--web-define" multiple times.
+                                                             If a template contains a variable placeholder but no corresponding "--web-define" is provided, it will warn that you have an unhandled variable.
+    --flavor                                                 Build a custom app flavor as defined by platform-specific build setup.
+                                                             Supports the use of product flavors in Android Gradle scripts, and the use of custom Xcode schemes.
+                                                             Overrides the value of the "default-flavor" entry in the flutter pubspec.
+    --[no-]web-resources-cdn                                 Use Web static resources hosted on a CDN.
+                                                             (defaults to on)
+    --use-application-binary=<path/to/app.apk>               Specify a pre-built application binary to use when running. For Android applications, this must be the path to an APK. For iOS applications, the path to an IPA. Other device types do not yet support prebuilt application binaries.
+    --trace-startup                                          Trace application startup, then exit, saving the trace to a file. By default, this will be saved in the "build" directory. If the FLUTTER_TEST_OUTPUTS_DIR environment variable is set, the file will be written there instead.
+    --[no-]cache-startup-profile                             Caches the CPU profile collected before the first frame for startup analysis.
+    --verbose-system-logs                                    Include verbose logging from the Flutter engine.
+    --purge-persistent-cache                                 Removes all existing persistent caches. This allows reproducing shader compilation jank that normally only happens the first time an app is run, or for reliable testing of compilation jank fixes (e.g. shader warm-up).
+    --route                                                  Which route to load when running the app.
+    --[no-]start-paused                                      Start in a paused mode and wait for a debugger to connect.
+    --endless-trace-buffer                                   Enable tracing to an infinite buffer, instead of a ring buffer. This is useful when recording large traces. To use an endless buffer to record startup traces, combine this with "--trace-startup".
+    --trace-systrace                                         Enable tracing to the system tracer. This is only useful on platforms where such a tracer is available (Android, iOS, macOS and Fuchsia).
+    --trace-to-file=<path/to/trace.binpb>                    Write the timeline trace to a file at the specified path. The file will be in Perfetto's proto format; it will be possible to load the file into Perfetto's trace viewer.
+    --trace-skia                                             Enable tracing of Skia code. This is useful when debugging the raster thread (formerly known as the GPU thread). By default, Flutter will not log Skia code, as it introduces significant overhead that may affect recorded performance metrics in a misleading way.
+    --[no-]enable-dart-profiling                             Whether the Dart VM sampling CPU profiler is enabled. This flag is only meaningful in debug and profile builds.
+                                                             (defaults to on)
+-a, --dart-entrypoint-args                                   Pass a list of arguments to the Dart entrypoint at application startup. By default this is main(List<String> args). Specify this option multiple times each with one argument to pass multiple arguments to the Dart entrypoint. Currently this is only supported on desktop platforms.
+    --wasm                                                   Compile to WebAssembly rather than JavaScript.
+                                                             See https://flutter.dev/to/wasm for more information.
+    --web-tls-cert-path                                      The certificate that host will use to serve using TLS connection. If not provided, the tool will use default http scheme.
+    --web-tls-cert-key-path                                  The certificate key that host will use to authenticate cert. If not provided, the tool will use default http scheme.
+    --web-launch-url                                         The URL to provide to the browser. Defaults to an HTTP URL with the host name of "--web-hostname", the port of "--web-port", and the path set to "/".
+    --base-href                                              Overrides the href attribute of the <base> tag in web/index.html. No change is made to web/index.html file if this flag is not provided. The value must start and end with "/". For more information: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+-t, --target=<path>                                          The main entry-point file of the application, as run on the device.
+                                                             If the "--target" option is omitted, but a file name is provided on the command line, then that is used instead.
+                                                             (defaults to "lib\main.dart")
+    --device-vmservice-port                                  Look for vmservice connections only from the specified port.
+                                                             Specifying port 0 (the default) will accept the first vmservice discovered.
+    --host-vmservice-port                                    When a device-side vmservice port is forwarded to a host-side port, use this value as the host port.
+                                                             Specifying port 0 (the default) will find a random free host port.
+    --[no-]pub                                               Whether to run "flutter pub get" before executing this command.
+                                                             (defaults to on)
+    --[no-]track-widget-creation                             Track widget creation locations. This enables features such as the widget inspector. This parameter is only functional in debug mode (i.e. when compiling JIT, not AOT).
+                                                             (defaults to on)
+    --device-user=<10>                                       Identifier number for a user or work profile on Android only. Run "adb shell pm list users" for available identifiers.
+    --device-timeout=<10>                                    Time in seconds to wait for devices to attach. Longer timeouts may be necessary for networked devices.
+    --device-connection                                      Discover devices based on connection type.
+
+          [both] (default)                                   Searches for both attached and wireless devices.
+          [attached]                                         Only searches for devices connected by USB or built-in (such as simulators/emulators, MacOS/Windows, Chrome)
+          [wireless]                                         Only searches for devices connected wirelessly. Discovering wireless devices may take longer.
+
+    --dds-port                                               When this value is provided, the Dart Development Service (DDS) will be bound to the provided port.
+                                                             Specifying port 0 (the default) will find a random free port.
+    --[no-]dds                                               Enable the Dart Developer Service (DDS).
+                                                             It may be necessary to disable this when attaching to an application with an existing DDS instance (e.g., attaching to an application currently connected to by "flutter run"), or when running certain tests.
+                                                             Disabling this feature may degrade IDE functionality if a DDS instance is not already connected to the target application.
+                                                             (defaults to on)
+    --[no-]android-skip-build-dependency-validation          Whether to skip version checking for Java, Gradle, the Android Gradle Plugin (AGP), and the Kotlin Gradle Plugin (KGP) during Android builds.
+-P, --android-project-arg                                    Additional arguments specified as key=value that are passed directly to the gradle project via the -P flag. These can be accessed in build.gradle via the "project.property" API.
+    --android-project-cache-dir                              Specifies the project-specific cache directory. Defaults to .gradle.
+    --ignore-deprecation                                     Indicates that the app should ignore deprecation warnings and continue to build using deprecated APIs. Use of this flag may cause your app to fail to build when deprecated APIs are removed.
+    --[no-]await-first-frame-when-tracing                    Whether to wait for the first frame when tracing startup ("--trace-startup"), or just dump the trace as soon as the application is running. The first frame is detected by looking for a Timeline event with the name "Rasterized first useful frame". By default, the widgets library's binding takes care of sending this event.
+                                                             (defaults to on)
+    --[no-]use-test-fonts                                    Enable (and default to) the "Ahem" font. This is a special font used in tests to remove any dependencies on the font metrics. It is enabled when you use "flutter test". Set this flag when running a test using "flutter run" for debugging purposes. This flag is only available when running in debug mode.
+    --[no-]build                                             If necessary, build the app before running.
+                                                             (defaults to on)
+    --[no-]hot                                               Run with support for hot reloading. Only available for debug mode. Not available with "--trace-startup".
+                                                             (defaults to on)
+    --pid-file                                               Specify a file to write the process ID to. You can send SIGUSR1 to trigger a hot reload and SIGUSR2 to trigger a hot restart. The file is created when the signal handlers are hooked and deleted when they are removed.
+
+Run "flutter help" to see global options.

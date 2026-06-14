@@ -1,34 +1,48 @@
 // Copyright (c) 2026 Piergiorgio Vagnozzi
 // Licensed under the MIT License.
 
-import 'dart:io';
-
+import 'package:args/command_runner.dart';
+import 'package:esptool_cli/src/commands/chip_id_command.dart';
+import 'package:esptool_cli/src/commands/flash_id_command.dart';
+import 'package:esptool_cli/src/commands/read_mac_command.dart';
+import 'package:esptool_cli/src/commands/version_command.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+CommandRunner<void> _createRunner() {
+  return CommandRunner<void>(
+    'esptool',
+    'A complete ESP chip programming tool (Dart clone of esptool.py)',
+  )
+    ..addCommand(VersionCommand())
+    ..addCommand(ChipIdCommand())
+    ..addCommand(ReadMacCommand())
+    ..addCommand(FlashIdCommand());
+}
 
 void main() {
   group('esptool CLI commands', () {
-    test('version command prints version', () async {
-      final result = await Process.run(
-        'dart',
-        ['bin/esptool.dart', 'version'],
-        workingDirectory: '.',
-      );
+    test('help shows available commands', () {
+      final runner = _createRunner();
+      final usage = runner.usage;
 
-      expect(result.exitCode, equals(0));
-      expect(result.stdout.toString(), contains('esptool'));
+      expect(usage, contains('chip_id'));
+      expect(usage, contains('read_mac'));
+      expect(usage, contains('flash_id'));
+      expect(usage, contains('version'));
     });
 
-    test('help shows available commands', () async {
-      final result = await Process.run(
-        'dart',
-        ['bin/esptool.dart', '--help'],
-        workingDirectory: '.',
-      );
+    test('hardware commands require an explicit --port', () async {
+      final runner = _createRunner();
 
-      expect(result.exitCode, equals(0));
-      final output = result.stdout.toString();
-      expect(output, contains('chip_id'));
-      expect(output, contains('read_mac'));
+      await expectLater(
+        runner.run(['chip_id']),
+        throwsA(
+          isA<UsageException>()
+              .having((error) => error.message, 'message', contains('port'))
+              .having((error) => error.usage, 'usage', contains('--port'))
+              .having((error) => error.usage, 'usage', isNot(contains('COM1'))),
+        ),
+      );
     });
   });
 }

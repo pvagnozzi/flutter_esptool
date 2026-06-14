@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.xauron.platform_serial">
+
+    <!-- Android USB host support does not require a dangerous runtime permission.
+         Declaring the USB host feature allows OTG-capable devices to discover the plugin. -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+
+    <application />
+</manifest>

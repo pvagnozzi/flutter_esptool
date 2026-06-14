@@ -1,0 +1,66 @@
+# GitVersion Configuration
+# Semantic versioning with automatic version bumping based on Git Flow conventions
+
+mode: Mainline
+branches:
+  main:
+    mode: ContinuousDeployment
+    tag: ''
+    increment: Patch
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+    commit-message-increment: Patch
+  develop:
+    mode: ContinuousDeployment
+    tag: alpha
+    increment: Minor
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+    commit-message-increment: Minor
+  feature:
+    regex: ^feature(/|-)?
+    mode: ContinuousDeployment
+    tag: alpha.{BranchName}
+    increment: Minor
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+  release:
+    regex: ^release(/|-)?
+    mode: ContinuousDeployment
+    tag: rc
+    increment: Patch
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+  hotfix:
+    regex: ^hotfix(/|-)?
+    mode: ContinuousDeployment
+    tag: ''
+    increment: Patch
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+  pull-request:
+    regex: ^(pull|pr)/
+    mode: ContinuousDeployment
+    tag: PullRequest
+    increment: Patch
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+
+ignore:
+  sha: []
+
+increment-strategy: Semantic
+commit-message-incrementing: Enabled
+legacy-version-tag-mode: false
+tag-prefix: 'v'
+version-in-branch-regex: '(?<version>[vV]?\d+(?:\.\d+)*(?:\.\d+)*(?:\.\d+)*)'
+
+assembly-versioning-format: '{Major}.{Minor}.{Patch}'
+assembly-file-versioning-format: '{Major}.{Minor}.{Patch}.{BuildMetaData}'
+assembly-informational-format: '{FullSemVer}'
+
+nuget-version-file-path-regex: '.*(?:\.csproj|\.vbproj|\.fsproj|pubspec\.yaml|\.gemspec|\.rbspec)$'
+
+continuous-delivery-fallback-tag: ci
+
+update-build-number: true

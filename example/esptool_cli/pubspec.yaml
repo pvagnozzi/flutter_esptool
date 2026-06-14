@@ -3,9 +3,11 @@ description: A complete CLI tool for ESP chip programming - clone of official es
 publish_to: none
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.10.0 <4.0.0"
 
 dependencies:
+  flutter:
+    sdk: flutter
   flutter_esptool:
     path: ../../
   args: ^2.4.0
@@ -15,4 +17,9 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  flutter_lints: ^3.0.0
   mocktail: ^1.0.0
+
+dependency_overrides:
+  platform_serial:
+    path: ../../third_party/platform_serial

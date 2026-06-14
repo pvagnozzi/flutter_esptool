@@ -44,7 +44,9 @@ class FlashService implements FlashServiceInterface {
       );
       final dataBlocks = <Uint8List>[
         for (final block in blocks)
-          params.compress ? _compressOrThrow(block.data) : Uint8List.fromList(block.data),
+          params.compress
+              ? _compressOrThrow(block.data)
+              : Uint8List.fromList(block.data),
       ];
       final compressedTotalBytes =
           dataBlocks.fold<int>(0, (total, block) => total + block.length);
@@ -190,31 +192,44 @@ class FlashService implements FlashServiceInterface {
   @override
   Future<Result<void>> eraseFlash({int? offset, int? size}) async {
     try {
-      final payload = Uint8List(16);
-      final data = ByteData.sublistView(payload);
-      data.setUint32(0, size ?? 0, Endian.little);
-      data.setUint32(4, 0, Endian.little);
-      data.setUint32(8, blockSize, Endian.little);
-      data.setUint32(12, offset ?? 0, Endian.little);
-      final begin = await _transport.sendCommand(
-        EspCommand(opcode: EspCommandOpcode.flashBegin, data: payload),
-      );
-      if (!begin.isSuccess) {
+      final EspCommand command;
+      final Duration timeout;
+      if (offset == null && size == null) {
+        command = EspCommand(opcode: EspCommandOpcode.eraseFlash);
+        timeout = const Duration(seconds: 120);
+      } else if (offset != null && size != null) {
+        if (offset < 0 || size <= 0) {
+          return const Failure<void>(
+            EspError(
+              type: EspErrorType.flashEraseFailed,
+              message:
+                  'Erase region requires a non-negative offset and positive size',
+            ),
+          );
+        }
+        final payload = Uint8List(8);
+        final data = ByteData.sublistView(payload);
+        data.setUint32(0, offset, Endian.little);
+        data.setUint32(4, size, Endian.little);
+        command =
+            EspCommand(opcode: EspCommandOpcode.eraseRegion, data: payload);
+        final seconds = (30 * (size / (1024 * 1024))).ceil().clamp(3, 120);
+        timeout = Duration(seconds: seconds);
+      } else {
+        return const Failure<void>(
+          EspError(
+            type: EspErrorType.flashEraseFailed,
+            message: 'Erase region requires both offset and size',
+          ),
+        );
+      }
+
+      final response = await _transport.sendCommand(command, timeout: timeout);
+      if (!response.isSuccess) {
         return const Failure<void>(
           EspError(
             type: EspErrorType.flashEraseFailed,
             message: 'The device rejected the erase request',
-          ),
-        );
-      }
-      final end = await _transport.sendCommand(
-        EspCommand(opcode: EspCommandOpcode.flashEnd, data: _u32(0)),
-      );
-      if (!end.isSuccess) {
-        return const Failure<void>(
-          EspError(
-            type: EspErrorType.flashEraseFailed,
-            message: 'The device rejected the erase completion request',
           ),
         );
       }

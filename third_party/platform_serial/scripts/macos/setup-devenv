@@ -1,0 +1,75 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+YES=0
+DRY_RUN=0
+SKIP_ANDROID_STUDIO=0
+SKIP_OH_MY_POSH=0
+FLUTTER_DIR="${HOME}/development/flutter"
+
+bold='\033[1m'; green='\033[32m'; yellow='\033[33m'; red='\033[31m'; cyan='\033[36m'; reset='\033[0m'
+
+usage() {
+  cat <<'EOF'
+🚀 setup-devenv — idempotent macOS development environment setup
+
+Synopsis:
+  scripts/macos/setup-devenv [options]
+
+Options:
+  --yes, -y                 Run without interactive confirmations.
+  --dry-run                 Print actions without changing the system.
+  --flutter-dir PATH        Flutter SDK location (default: ~/development/flutter).
+  --skip-android-studio     Do not install Android Studio.
+  --skip-oh-my-posh         Do not install or configure Oh My Posh.
+  --help, -h                Show this help.
+EOF
+}
+
+log() { printf "%b%s%b\n" "$cyan" "$1" "$reset"; }
+ok() { printf "%b✅ %s%b\n" "$green" "$1" "$reset"; }
+warn() { printf "%b⚠️  %s%b\n" "$yellow" "$1" "$reset"; }
+fail() { printf "%b❌ %s%b\n" "$red" "$1" "$reset"; exit 1; }
+run() { if [[ "$DRY_RUN" == 1 ]]; then warn "dry-run: $*"; else eval "$@"; fi; }
+have() { command -v "$1" >/dev/null 2>&1; }
+confirm() { [[ "$YES" == 1 ]] && return 0; read "reply?$1 [y/N] "; [[ "$reply" =~ '^[Yy]$' ]]; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes|-y) YES=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --flutter-dir) FLUTTER_DIR="$2"; shift ;;
+    --skip-android-studio) SKIP_ANDROID_STUDIO=1 ;;
+    --skip-oh-my-posh) SKIP_OH_MY_POSH=1 ;;
+    --help|-h) usage; exit 0 ;;
+    *) fail "Unknown option: $1" ;;
+  esac
+  shift
+done
+
+printf "%b%s%b\n" "$bold" "🚀 platform_serial macOS setup" "$reset"
+
+if have brew; then ok "Homebrew installed"; elif confirm "Install Homebrew?"; then run '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'; else fail "Homebrew is required for automated macOS setup"; fi
+
+if have git; then ok "Git already installed: $(git --version)"; else log "📦 Installing Git"; run "brew install git"; fi
+
+if [[ -x "$FLUTTER_DIR/bin/flutter" ]]; then ok "Flutter already installed at $FLUTTER_DIR"; elif confirm "Install Flutter SDK into $FLUTTER_DIR?"; then run "mkdir -p '$(dirname "$FLUTTER_DIR")'"; run "git clone https://github.com/flutter/flutter.git -b stable '$FLUTTER_DIR'"; fi
+
+if [[ "$SKIP_ANDROID_STUDIO" == 0 ]]; then
+  if [[ -d "/Applications/Android Studio.app" ]]; then ok "Android Studio already installed"; else log "🤖 Installing Android Studio"; run "brew install --cask android-studio"; fi
+fi
+
+if [[ "$SKIP_OH_MY_POSH" == 0 ]]; then
+  if have oh-my-posh; then ok "Oh My Posh already installed"; else log "🎨 Installing Oh My Posh"; run "brew install jandedobbeleer/oh-my-posh/oh-my-posh"; fi
+  mkdir -p "$HOME/.poshthemes"
+  THEME="$HOME/.poshthemes/M365Princess.omp.json"
+  if [[ ! -f "$THEME" ]]; then run "curl -fsSL -o '$THEME' https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/M365Princess.omp.json"; fi
+  marker="# platform_serial oh-my-posh"
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    [[ -f "$rc" ]] || touch "$rc"
+    if grep -Fq "$marker" "$rc"; then ok "Oh My Posh already configured in $rc"; else run "printf '\n%s\neval \"\$(oh-my-posh init %s --config %s)\"\n' '$marker' '$(basename "$rc" | sed 's/^\.//')' '$THEME' >> '$rc'"; fi
+  done
+fi
+
+if [[ -x "$FLUTTER_DIR/bin/flutter" ]]; then run "'$FLUTTER_DIR/bin/flutter' doctor"; fi
+ok "macOS development environment setup complete"

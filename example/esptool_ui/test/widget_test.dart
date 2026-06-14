@@ -4,25 +4,33 @@ import 'package:flutter_esptool/flutter_esptool.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('renders home controls with connect disabled when no ports exist',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(
-      EsptoolUiApp(
-        splashDuration: Duration.zero,
-        serialPortsLoader: () async => const <SerialPortInfo>[],
-        transportFactory: (_) => _IdleTransport(),
-      ),
-    );
+  testWidgets(
+    'renders home controls on narrow screens with connect disabled when no ports exist',
+    (WidgetTester tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.binding.setSurfaceSize(const Size(360, 640));
 
-    await tester.pump();
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        EsptoolUiApp(
+          splashDuration: Duration.zero,
+          serialPortsLoader: () async => const <SerialPortInfo>[],
+          transportFactory: (_) => _IdleTransport(),
+        ),
+      );
 
-    expect(find.text('Connect'), findsOneWidget);
-    expect(find.text('No serial ports detected'), findsWidgets);
+      await tester.pump();
+      await tester.pumpAndSettle();
 
-    final connectButton = tester.widget<FilledButton>(find.byType(FilledButton).first);
-    expect(connectButton.onPressed, isNull);
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.text('Connect'), findsOneWidget);
+      expect(find.text('No serial ports detected'), findsWidgets);
+
+      final connectButton = tester.widget<FilledButton>(
+        find.byType(FilledButton).first,
+      );
+      expect(connectButton.onPressed, isNull);
+    },
+  );
 }
 
 class _IdleTransport implements EspTransportInterface {
@@ -49,6 +57,7 @@ class _IdleTransport implements EspTransportInterface {
 
   @override
   Future<EspResponse> sendCommand(EspCommand command, {Duration? timeout}) {
-    throw UnimplementedError('Transport commands are not exercised in widget tests.');
+    throw UnimplementedError(
+        'Transport commands are not exercised in widget tests.');
   }
 }

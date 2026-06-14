@@ -158,7 +158,11 @@ class _HomePageState extends State<_HomePage> {
   late final InfoService _infoService;
   late final FlashService _flashService;
 
-  final List<String> _logs = <String>[];
+  final List<_LogEntry> _logs = <_LogEntry>[];
+  final SerialManager _serialManager = SerialManager();
+  List<SerialPortInfo> _availablePorts = <SerialPortInfo>[];
+  bool _loadingPorts = false;
+  String? _selectedPortName;
   bool _connected = false;
   String _chip = '-';
   String _mac = '-';
@@ -167,28 +171,126 @@ class _HomePageState extends State<_HomePage> {
   @override
   void initState() {
     super.initState();
-    _transport = _ScriptedTransport();
+    _transport = _ScriptedTransport(logger: _onTransportLog);
     _connectionService = ConnectionService(_transport);
     _chipDetectionService = ChipDetectionService(_transport);
     _infoService = InfoService(
         transport: _transport, chipDetectionService: _chipDetectionService);
     _flashService = FlashService(transport: _transport);
+    _refreshPorts();
   }
 
-  void _log(String message) {
-    setState(() => _logs.insert(0, message));
+  void _log(String message, {LogLevel level = LogLevel.info}) {
+    final entry = _LogEntry(
+      message: message,
+      level: level,
+      timestamp: DateTime.now(),
+    );
+    debugPrint('[${entry.level.name.toUpperCase()}] ${entry.message}');
+    setState(() => _logs.insert(0, entry));
+  }
+
+  void _onTransportLog(EspTransportLogEntry entry) {
+    final response = entry.response;
+    final level = switch (entry.type) {
+      EspTransportLogType.commandSent => LogLevel.info,
+      EspTransportLogType.responseReceived =>
+        response != null && response.isSuccess ? LogLevel.info : LogLevel.warning,
+      EspTransportLogType.transportError => LogLevel.error,
+    };
+    _log(_formatTransportLog(entry), level: level);
+  }
+
+  String _formatTransportLog(EspTransportLogEntry entry) {
+    final timestamp = entry.timestamp.toIso8601String();
+    final opcode = entry.opcode;
+    final opcodeLabel = opcode == null
+        ? '-'
+        : '${opcode.name}(0x${opcode.value.toRadixString(16).padLeft(2, '0')})';
+    final rawPacket =
+        entry.rawPacket == null ? '-' : _toHex(entry.rawPacket!, maxBytes: 128);
+    final rawFrame =
+        entry.rawFrame == null ? '-' : _toHex(entry.rawFrame!, maxBytes: 128);
+
+    return switch (entry.type) {
+      EspTransportLogType.commandSent =>
+        '[$timestamp] CMD $opcodeLabel\n'
+            'raw.packet: $rawPacket\n'
+            'raw.frame: $rawFrame\n'
+            'decoded: checksum=0x${entry.command?.checksum.toRadixString(16).padLeft(2, '0') ?? '--'} '
+                'dataLen=${entry.command?.data.length ?? 0}',
+      EspTransportLogType.responseReceived =>
+        '[$timestamp] RSP $opcodeLabel\n'
+            'raw.packet: $rawPacket\n'
+            'raw.frame: $rawFrame\n'
+            'decoded: value=0x${entry.response?.value.toRadixString(16).padLeft(8, '0') ?? '--------'} '
+            'status=${entry.response?.status ?? '-'} error=${entry.response?.error ?? '-'} '
+            'dataLen=${entry.response?.data.length ?? 0}',
+      EspTransportLogType.transportError =>
+        '[$timestamp] ERR $opcodeLabel\n'
+            'message: ${entry.message ?? 'unknown transport error'}',
+    };
+  }
+
+  String _toHex(Uint8List bytes, {required int maxBytes}) {
+    final visibleLength = bytes.length > maxBytes ? maxBytes : bytes.length;
+    final visible = bytes
+        .take(visibleLength)
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join(' ');
+    if (bytes.length <= maxBytes) {
+      return visible;
+    }
+    return '$visible ... (+${bytes.length - maxBytes} bytes)';
   }
 
   Future<void> _connect() async {
-    final result =
-        await _connectionService.connect(const EspConfig(portName: 'DEMO-COM'));
+    final selectedPort = _selectedPortName ?? 'DEMO-COM';
+    final result = await _connectionService.connect(EspConfig(
+      portName: selectedPort,
+    ));
     result.fold(
       (_) {
         setState(() => _connected = true);
-        _log('Connection successful');
+        _log('Connection successful on $selectedPort');
       },
-      (error) => _log('Connection failed: ${error.message}'),
+      (error) => _log('Connection failed: ${error.message}', level: LogLevel.error),
     );
+  }
+
+  Future<void> _refreshPorts() async {
+    setState(() => _loadingPorts = true);
+    try {
+      final ports = await _serialManager.getAvailablePorts();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _availablePorts = ports;
+        final stillAvailable = _selectedPortName != null &&
+            ports.any((port) => port.portName == _selectedPortName);
+        _selectedPortName = stillAvailable
+            ? _selectedPortName
+            : (ports.isNotEmpty ? ports.first.portName : null);
+      });
+      _log('Detected ${ports.length} serial port(s)');
+    } on SerialError catch (error) {
+      _log('Failed to load serial ports: ${error.message}', level: LogLevel.error);
+    } on ArgumentError catch (error) {
+      _log('Serial plugin unavailable: ${error.message}', level: LogLevel.warning);
+    } finally {
+      if (mounted) {
+        setState(() => _loadingPorts = false);
+      }
+    }
+  }
+
+  String _describePort(SerialPortInfo port) {
+    final description = port.description.trim();
+    if (description.isEmpty) {
+      return port.portName;
+    }
+    return '${port.portName} - $description';
   }
 
   Future<void> _detectChip() async {
@@ -198,7 +300,8 @@ class _HomePageState extends State<_HomePage> {
         setState(() => _chip = chip.description);
         _log('Chip detected: ${chip.description}');
       },
-      (error) => _log('Chip detection failed: ${error.message}'),
+      (error) =>
+          _log('Chip detection failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -209,7 +312,7 @@ class _HomePageState extends State<_HomePage> {
         setState(() => _mac = mac);
         _log('MAC: $mac');
       },
-      (error) => _log('MAC read failed: ${error.message}'),
+      (error) => _log('MAC read failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -222,7 +325,8 @@ class _HomePageState extends State<_HomePage> {
         setState(() => _flash = desc);
         _log('Flash info: $desc');
       },
-      (error) => _log('Flash info failed: ${error.message}'),
+      (error) =>
+          _log('Flash info failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -243,7 +347,8 @@ class _HomePageState extends State<_HomePage> {
 
     result.fold(
       (_) => _log('Flash write completed'),
-      (error) => _log('Flash write failed: ${error.message}'),
+      (error) =>
+          _log('Flash write failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -251,7 +356,8 @@ class _HomePageState extends State<_HomePage> {
     final result = await _flashService.eraseFlash();
     result.fold(
       (_) => _log('Flash erase completed'),
-      (error) => _log('Flash erase failed: ${error.message}'),
+      (error) =>
+          _log('Flash erase failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -259,7 +365,7 @@ class _HomePageState extends State<_HomePage> {
     final result = await _flashService.md5Flash(0x1000, 4096);
     result.fold(
       (hash) => _log('Device MD5: $hash'),
-      (error) => _log('MD5 failed: ${error.message}'),
+      (error) => _log('MD5 failed: ${error.message}', level: LogLevel.error),
     );
   }
 
@@ -274,6 +380,18 @@ class _HomePageState extends State<_HomePage> {
           DropdownButtonHideUnderline(
             child: DropdownButton<Locale>(
               value: widget.locale,
+              selectedItemBuilder: (context) => AppStrings.supportedLocales
+                  .map(
+                    (locale) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(AppStrings.languageFlag(locale)),
+                        const SizedBox(width: 8),
+                        Text(AppStrings.languageDisplayName(locale)),
+                      ],
+                    ),
+                  )
+                  .toList(),
               onChanged: (value) {
                 if (value != null) {
                   widget.onLocaleChanged(value);
@@ -283,7 +401,14 @@ class _HomePageState extends State<_HomePage> {
                   .map(
                     (locale) => DropdownMenuItem(
                       value: locale,
-                      child: Text(locale.languageCode.toUpperCase()),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(AppStrings.languageFlag(locale)),
+                          const SizedBox(width: 8),
+                          Text(AppStrings.languageDisplayName(locale)),
+                        ],
+                      ),
                     ),
                   )
                   .toList(),
@@ -299,13 +424,39 @@ class _HomePageState extends State<_HomePage> {
                 }
               },
               items: [
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: ThemeMode.system,
-                  child: Text('System'),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.brightness_auto_rounded),
+                      const SizedBox(width: 8),
+                      Text(t('system')),
+                    ],
+                  ),
                 ),
                 DropdownMenuItem(
-                    value: ThemeMode.light, child: Text(t('light'))),
-                DropdownMenuItem(value: ThemeMode.dark, child: Text(t('dark'))),
+                  value: ThemeMode.light,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.light_mode_rounded),
+                      const SizedBox(width: 8),
+                      Text(t('light')),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.dark,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.dark_mode_rounded),
+                      const SizedBox(width: 8),
+                      Text(t('dark')),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -318,6 +469,63 @@ class _HomePageState extends State<_HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(t('subtitle'), style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.usb_rounded),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t('serialPorts'),
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              hint: Text(t('noSerialPorts')),
+                              value: _selectedPortName,
+                              onChanged: _availablePorts.isEmpty
+                                  ? null
+                                  : (value) {
+                                      if (value != null) {
+                                        setState(() => _selectedPortName = value);
+                                      }
+                                    },
+                              items: _availablePorts
+                                  .map(
+                                    (port) => DropdownMenuItem<String>(
+                                      value: port.portName,
+                                      child: Text(_describePort(port)),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: t('refreshPorts'),
+                      onPressed: _loadingPorts ? null : _refreshPorts,
+                      icon: _loadingPorts
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 10,
@@ -364,11 +572,34 @@ class _HomePageState extends State<_HomePage> {
               child: Card(
                 child: ListView.builder(
                   itemCount: _logs.length,
-                  itemBuilder: (context, index) => ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.chevron_right_rounded),
-                    title: Text(_logs[index]),
-                  ),
+                  itemBuilder: (context, index) {
+                    final logEntry = _logs[index];
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: _logBackgroundColor(context, logEntry.level),
+                        border: Border(
+                          left: BorderSide(
+                            color: _logAccentColor(context, logEntry.level),
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                      child: ListTile(
+                        dense: false,
+                        leading: Icon(
+                          _logIcon(logEntry.level),
+                          color: _logAccentColor(context, logEntry.level),
+                        ),
+                        title: Text(
+                          logEntry.message,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            color: _logTextColor(context, logEntry.level),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -377,9 +608,60 @@ class _HomePageState extends State<_HomePage> {
       ),
     );
   }
+
+  Color _logBackgroundColor(BuildContext context, LogLevel level) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (level) {
+      LogLevel.info => scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      LogLevel.warning => Colors.amber.withValues(alpha: 0.14),
+      LogLevel.error => scheme.errorContainer.withValues(alpha: 0.38),
+    };
+  }
+
+  Color _logTextColor(BuildContext context, LogLevel level) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (level) {
+      LogLevel.info => scheme.onSurface,
+      LogLevel.warning => Colors.amber.shade900,
+      LogLevel.error => scheme.onErrorContainer,
+    };
+  }
+
+  Color _logAccentColor(BuildContext context, LogLevel level) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (level) {
+      LogLevel.info => Colors.blueGrey,
+      LogLevel.warning => Colors.amber.shade800,
+      LogLevel.error => scheme.error,
+    };
+  }
+
+  IconData _logIcon(LogLevel level) => switch (level) {
+        LogLevel.info => Icons.info_outline_rounded,
+        LogLevel.warning => Icons.warning_amber_rounded,
+        LogLevel.error => Icons.error_outline_rounded,
+      };
+}
+
+enum LogLevel { info, warning, error }
+
+class _LogEntry {
+  const _LogEntry({
+    required this.message,
+    required this.level,
+    required this.timestamp,
+  });
+
+  final String message;
+  final LogLevel level;
+  final DateTime timestamp;
 }
 
 class _ScriptedTransport implements EspTransportInterface {
+  _ScriptedTransport({this.logger});
+
+  final EspTransportLogger? logger;
+
   final Map<EspCommandOpcode, Queue<EspResponse>> _responses =
       <EspCommandOpcode, Queue<EspResponse>>{
     EspCommandOpcode.sync: Queue<EspResponse>()
@@ -435,11 +717,32 @@ class _ScriptedTransport implements EspTransportInterface {
   @override
   Future<EspResponse> sendCommand(EspCommand command,
       {Duration? timeout}) async {
+    final requestPacket = _buildCommandPacket(command);
+    logger?.call(
+      EspTransportLogEntry(
+        type: EspTransportLogType.commandSent,
+        timestamp: DateTime.now(),
+        opcode: command.opcode,
+        rawPacket: Uint8List.fromList(requestPacket),
+        command: command,
+      ),
+    );
+
     final queue = _responses[command.opcode];
-    if (queue == null || queue.isEmpty) {
-      return _ok(command.opcode);
-    }
-    return queue.removeFirst();
+    final response =
+        queue == null || queue.isEmpty ? _ok(command.opcode) : queue.removeFirst();
+    final responsePacket = _buildResponsePacket(response);
+    logger?.call(
+      EspTransportLogEntry(
+        type: EspTransportLogType.responseReceived,
+        timestamp: DateTime.now(),
+        opcode: response.opcode,
+        rawPacket: Uint8List.fromList(responsePacket),
+        response: response,
+        command: command,
+      ),
+    );
+    return response;
   }
 
   static EspResponse _ok(
@@ -454,5 +757,29 @@ class _ScriptedTransport implements EspTransportInterface {
       status: 0,
       error: 0,
     );
+  }
+
+  static Uint8List _buildCommandPacket(EspCommand command) {
+    final packet = Uint8List(8 + command.data.length);
+    final data = ByteData.sublistView(packet);
+    data.setUint8(0, 0x00);
+    data.setUint8(1, command.opcode.value);
+    data.setUint16(2, command.data.length, Endian.little);
+    data.setUint32(4, command.checksum, Endian.little);
+    packet.setRange(8, packet.length, command.data);
+    return packet;
+  }
+
+  static Uint8List _buildResponsePacket(EspResponse response) {
+    final packet = Uint8List(8 + response.data.length + 2);
+    final data = ByteData.sublistView(packet);
+    data.setUint8(0, 0x01);
+    data.setUint8(1, response.opcode.value);
+    data.setUint16(2, response.data.length + 2, Endian.little);
+    data.setUint32(4, response.value, Endian.little);
+    packet.setRange(8, 8 + response.data.length, response.data);
+    packet[packet.length - 2] = response.status;
+    packet[packet.length - 1] = response.error;
+    return packet;
   }
 }

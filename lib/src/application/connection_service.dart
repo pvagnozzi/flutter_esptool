@@ -25,9 +25,12 @@ class ConnectionService {
   Future<Result<void>> connect(EspConfig config) async {
     try {
       await _transport.open(config);
-      await _transport.resetToBootloader();
+      final syncTimeout = config.timeout;
 
       for (var attempt = 0; attempt < config.syncRetries; attempt++) {
+        if (attempt > 0) {
+          await _transport.resetToBootloader();
+        }
         try {
           final response = await _transport.sendCommand(
             EspCommand(
@@ -35,7 +38,7 @@ class ConnectionService {
               data: _buildSyncPayload(),
               checksum: 0,
             ),
-            timeout: config.timeout,
+            timeout: syncTimeout,
           );
           if (response.isSuccess) {
             _isConnected = true;

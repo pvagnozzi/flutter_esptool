@@ -37,6 +37,7 @@ void main() {
     when(() => serial.resetBuffers()).thenAnswer((_) async {});
     when(() => serial.close()).thenAnswer((_) async {});
     when(() => serial.flush()).thenAnswer((_) async {});
+    when(() => serial.bytesAvailable()).thenAnswer((_) async => 1024);
     when(() => serial.write(any(), timeout: any(named: 'timeout')))
         .thenAnswer((_) async => 1);
   });
@@ -104,6 +105,27 @@ void main() {
       expect(response.isSuccess, isTrue);
     });
 
+    test('sendCommand ignores stale opcode responses before matching one',
+        () async {
+      await transport.open(const EspConfig(portName: 'COM5'));
+      var call = 0;
+      when(() => serial.read(any(), timeout: any(named: 'timeout')))
+          .thenAnswer((_) async {
+        call += 1;
+        if (call == 1) {
+          return _buildSlipResponse(EspCommandOpcode.sync, value: 0xDEADBEEF);
+        }
+        return _buildSlipResponse(EspCommandOpcode.readReg, value: 0x12345678);
+      });
+
+      final response = await transport.sendCommand(
+        EspCommand(opcode: EspCommandOpcode.readReg, data: Uint8List(4)),
+      );
+
+      expect(response.opcode, EspCommandOpcode.readReg);
+      expect(response.value, 0x12345678);
+    });
+
     test('sendCommand throws timeout when reads never complete', () async {
       await transport.open(
         const EspConfig(portName: 'COM5', timeout: Duration(milliseconds: 30)),
@@ -146,6 +168,24 @@ void main() {
       final response = await transport
           .sendCommand(EspCommand(opcode: EspCommandOpcode.sync));
       expect(response.value, 0x55AA);
+    });
+
+    test('sendCommand throws invalidResponse for invalid SLIP escape', () async {
+      await transport.open(const EspConfig(portName: 'COM5'));
+      when(() => serial.read(any(), timeout: any(named: 'timeout'))).thenAnswer(
+        (_) async => Uint8List.fromList(<int>[0xC0, 0xDB, 0xAA, 0xC0]),
+      );
+
+      expect(
+        () => transport.sendCommand(EspCommand(opcode: EspCommandOpcode.sync)),
+        throwsA(
+          isA<EspError>().having(
+            (error) => error.type,
+            'type',
+            EspErrorType.invalidResponse,
+          ),
+        ),
+      );
     });
 
     test('changeBaud sends the expected command', () async {

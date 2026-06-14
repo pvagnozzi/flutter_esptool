@@ -10,14 +10,61 @@ import 'package:flutter_esptool/src/transport/esp_transport_interface.dart';
 import 'package:flutter_esptool/src/transport/slip_codec.dart';
 import 'package:platform_serial/platform_serial.dart';
 
+/// Log event type emitted by [EspTransport].
+enum EspTransportLogType { commandSent, responseReceived, transportError }
+
+/// Structured log entry emitted by [EspTransport].
+class EspTransportLogEntry {
+  const EspTransportLogEntry({
+    required this.type,
+    required this.timestamp,
+    this.opcode,
+    this.rawPacket,
+    this.rawFrame,
+    this.command,
+    this.response,
+    this.message,
+  });
+
+  /// The event type.
+  final EspTransportLogType type;
+
+  /// Event creation time.
+  final DateTime timestamp;
+
+  /// The command opcode associated with the event, if available.
+  final EspCommandOpcode? opcode;
+
+  /// ESP packet bytes (not SLIP-encoded), when available.
+  final Uint8List? rawPacket;
+
+  /// SLIP frame bytes, when available.
+  final Uint8List? rawFrame;
+
+  /// Decoded command, when available.
+  final EspCommand? command;
+
+  /// Decoded response, when available.
+  final EspResponse? response;
+
+  /// Error or diagnostic message, when available.
+  final String? message;
+}
+
+/// Callback used to consume [EspTransport] structured logs.
+typedef EspTransportLogger = void Function(EspTransportLogEntry entry);
+
 /// Serial transport implementation for the ESP SLIP protocol.
 class EspTransport implements EspTransportInterface {
   /// Creates an [EspTransport].
-  EspTransport({SerialPortInterface? serial})
+  EspTransport({SerialPortInterface? serial, this.logger})
       : serial = serial ?? SerialManager().createPort();
 
   /// The wrapped serial port implementation.
   final SerialPortInterface serial;
+
+  /// Optional structured logger for command/response traffic.
+  final EspTransportLogger? logger;
 
   EspConfig? _config;
   final BytesBuilder _readBuffer = BytesBuilder(copy: false);
@@ -63,14 +110,27 @@ class EspTransport implements EspTransportInterface {
     }
 
     try {
-      // Mirrors esptool's auto-reset sequence for ESP32-class boards.
-      await serial.setDtr(false);
-      await serial.setRts(true);
+      var dtrState = false;
+      Future<void> setDtr(bool value) async {
+        dtrState = value;
+        await serial.setDtr(value);
+      }
+
+      Future<void> setRts(bool value) async {
+        await serial.setRts(value);
+        // Mirrors esptool workaround for some Windows drivers where
+        // RTS changes are propagated reliably only when DTR is resent.
+        await serial.setDtr(dtrState);
+      }
+
+      // Classic reset (esptool ClassicReset).
+      await setDtr(false);
+      await setRts(true);
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      await serial.setDtr(true);
-      await serial.setRts(false);
+      await setDtr(true);
+      await setRts(false);
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      await serial.setDtr(false);
+      await setDtr(false);
       await Future<void>.delayed(const Duration(milliseconds: 50));
     } on SerialError catch (error) {
       if (error.type != SerialErrorType.platformUnavailable) {
@@ -91,18 +151,81 @@ class EspTransport implements EspTransportInterface {
   }) async {
     final effectiveTimeout =
         timeout ?? _config?.timeout ?? const Duration(seconds: 3);
+    final deadline = DateTime.now().add(effectiveTimeout);
     final packet = _buildPacket(command);
     final frame = SlipCodec.encode(packet);
+    logger?.call(
+      EspTransportLogEntry(
+        type: EspTransportLogType.commandSent,
+        timestamp: DateTime.now(),
+        opcode: command.opcode,
+        rawPacket: Uint8List.fromList(packet),
+        rawFrame: Uint8List.fromList(frame),
+        command: command,
+      ),
+    );
 
     try {
       await serial.write(frame, timeout: effectiveTimeout);
       await serial.flush();
     } on SerialError catch (error, stackTrace) {
-      throw _mapSerialError(error, stackTrace);
+      final mapped = _mapSerialError(error, stackTrace);
+      logger?.call(
+        EspTransportLogEntry(
+          type: EspTransportLogType.transportError,
+          timestamp: DateTime.now(),
+          opcode: command.opcode,
+          command: command,
+          message: mapped.message,
+        ),
+      );
+      throw mapped;
     }
 
-    final responseFrame = await _readFrame(effectiveTimeout);
-    return _parseResponse(responseFrame);
+    try {
+      while (DateTime.now().isBefore(deadline)) {
+        final remaining = deadline.difference(DateTime.now());
+        if (remaining <= Duration.zero) {
+          break;
+        }
+
+        final responseFrame = await _readFrame(remaining);
+        final response = _parseResponse(responseFrame.packet);
+        logger?.call(
+          EspTransportLogEntry(
+            type: EspTransportLogType.responseReceived,
+            timestamp: DateTime.now(),
+            opcode: response.opcode,
+            rawPacket: Uint8List.fromList(responseFrame.packet),
+            rawFrame: Uint8List.fromList(responseFrame.rawFrame),
+            command: command,
+            response: response,
+          ),
+        );
+
+        // ESP ROM can return stale/extra packets (for example extra SYNC replies).
+        // Keep reading until the response opcode matches the in-flight command.
+        if (response.opcode == command.opcode) {
+          return response;
+        }
+      }
+
+      throw const EspError(
+        type: EspErrorType.timeout,
+        message: 'Response opcode did not match the requested command',
+      );
+    } on EspError catch (error) {
+      logger?.call(
+        EspTransportLogEntry(
+          type: EspTransportLogType.transportError,
+          timestamp: DateTime.now(),
+          opcode: command.opcode,
+          command: command,
+          message: error.message,
+        ),
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -141,7 +264,7 @@ class EspTransport implements EspTransportInterface {
     return packet;
   }
 
-  Future<Uint8List> _readFrame(Duration timeout) async {
+  Future<_FrameReadResult> _readFrame(Duration timeout) async {
     final deadline = DateTime.now().add(timeout);
 
     while (DateTime.now().isBefore(deadline)) {
@@ -156,7 +279,9 @@ class EspTransport implements EspTransportInterface {
       }
 
       try {
-        final chunk = await serial.read(1024, timeout: remaining);
+        final available = await serial.bytesAvailable();
+        final readLength = available > 0 ? available : 1;
+        final chunk = await serial.read(readLength, timeout: remaining);
         if (chunk.isNotEmpty) {
           _readBuffer.add(chunk);
         }
@@ -182,7 +307,7 @@ class EspTransport implements EspTransportInterface {
     );
   }
 
-  Uint8List? _tryExtractFrame() {
+  _FrameReadResult? _tryExtractFrame() {
     final current = _readBuffer.toBytes();
     if (current.isEmpty) {
       return null;
@@ -206,10 +331,19 @@ class EspTransport implements EspTransportInterface {
       if (remaining.isNotEmpty) {
         _readBuffer.add(remaining);
       }
-      if (frame == null || frame.isEmpty) {
+      if (frame == null) {
+        throw const EspError(
+          type: EspErrorType.invalidResponse,
+          message: 'Received an invalid SLIP frame',
+        );
+      }
+      if (frame.isEmpty) {
         return null;
       }
-      return frame;
+      return _FrameReadResult(
+        rawFrame: rawFrame,
+        packet: frame,
+      );
     }
 
     if (start > 0) {
@@ -270,4 +404,14 @@ class EspTransport implements EspTransportInterface {
     };
     return EspError(type: type, message: error.message, stackTrace: stackTrace);
   }
+}
+
+class _FrameReadResult {
+  const _FrameReadResult({
+    required this.rawFrame,
+    required this.packet,
+  });
+
+  final Uint8List rawFrame;
+  final Uint8List packet;
 }

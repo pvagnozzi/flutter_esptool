@@ -38,16 +38,29 @@ class FlashService implements FlashServiceInterface {
         params.offset,
         blockSize,
       );
+      final dataBlocks = <Uint8List>[
+        for (final block in blocks)
+          params.compress ? _compressOrThrow(block.data) : Uint8List.fromList(block.data),
+      ];
+      final compressedTotalBytes =
+          dataBlocks.fold<int>(0, (total, block) => total + block.length);
       final beginResponse = await _transport.sendCommand(
         EspCommand(
           opcode: params.compress
               ? EspCommandOpcode.flashDeflBegin
               : EspCommandOpcode.flashBegin,
-          data: _buildFlashBeginPayload(
-            totalBytes: params.data.length,
-            blockCount: blocks.length,
-            offset: params.offset,
-          ),
+          data: params.compress
+              ? _buildFlashDeflBeginPayload(
+                  uncompressedBytes: params.data.length,
+                  compressedBytes: compressedTotalBytes,
+                  blockCount: dataBlocks.length,
+                  offset: params.offset,
+                )
+              : _buildFlashBeginPayload(
+                  totalBytes: params.data.length,
+                  blockCount: blocks.length,
+                  offset: params.offset,
+                ),
         ),
       );
       if (!beginResponse.isSuccess) {
@@ -62,9 +75,7 @@ class FlashService implements FlashServiceInterface {
       var written = 0;
       for (var index = 0; index < blocks.length; index++) {
         final block = blocks[index];
-        final payload = params.compress
-            ? _compressOrThrow(block.data)
-            : Uint8List.fromList(block.data);
+        final payload = dataBlocks[index];
         final response = await _transport.sendCommand(
           EspCommand(
             opcode: params.compress
@@ -93,6 +104,9 @@ class FlashService implements FlashServiceInterface {
           ),
         );
       }
+
+      // Give the device a moment to settle after the last data block
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
       final endResponse = await _transport.sendCommand(
         EspCommand(
@@ -231,7 +245,7 @@ class FlashService implements FlashServiceInterface {
           ),
         );
       }
-      final hash = String.fromCharCodes(response.data).trim().toLowerCase();
+      final hash = _normalizeMd5Response(response.data);
       if (hash.isEmpty) {
         return const Failure<String>(
           EspError(
@@ -258,12 +272,35 @@ class FlashService implements FlashServiceInterface {
     required int blockCount,
     required int offset,
   }) {
+    final eraseSize = _roundUpToBlock(totalBytes);
     final payload = Uint8List(16);
     final data = ByteData.sublistView(payload);
-    data.setUint32(0, totalBytes, Endian.little);
+    data.setUint32(0, eraseSize, Endian.little);
     data.setUint32(4, blockCount, Endian.little);
     data.setUint32(8, blockSize, Endian.little);
     data.setUint32(12, offset, Endian.little);
+    return payload;
+  }
+
+  Uint8List _buildFlashDeflBeginPayload({
+    required int uncompressedBytes,
+    required int compressedBytes,
+    required int blockCount,
+    required int offset,
+  }) {
+    final writeSize = _roundUpToBlock(uncompressedBytes);
+    final payload = Uint8List(16);
+    final data = ByteData.sublistView(payload);
+    data.setUint32(0, writeSize, Endian.little);
+    data.setUint32(4, blockCount, Endian.little);
+    data.setUint32(8, blockSize, Endian.little);
+    data.setUint32(12, offset, Endian.little);
+    if (compressedBytes == 0 && uncompressedBytes > 0) {
+      throw const EspError(
+        type: EspErrorType.compressionError,
+        message: 'Compressed payload is empty for non-empty flash write',
+      );
+    }
     return payload;
   }
 
@@ -292,6 +329,13 @@ class FlashService implements FlashServiceInterface {
     return bytes;
   }
 
+  int _roundUpToBlock(int size) {
+    if (size <= 0) {
+      return 0;
+    }
+    return ((size + blockSize - 1) ~/ blockSize) * blockSize;
+  }
+
   void _emitProgress(
     Stream<EspProgress> Function(EspProgress progress)? callback,
     EspProgress progress,
@@ -306,6 +350,21 @@ class FlashService implements FlashServiceInterface {
       buffer.write(byte.toRadixString(16).padLeft(2, '0'));
     }
     return buffer.toString();
+  }
+
+  String _normalizeMd5Response(Uint8List raw) {
+    final text = String.fromCharCodes(raw).trim().toLowerCase();
+    if (RegExp(r'^[0-9a-f]{32}$').hasMatch(text)) {
+      return text;
+    }
+    if (raw.length == 16) {
+      final buffer = StringBuffer();
+      for (final byte in raw) {
+        buffer.write(byte.toRadixString(16).padLeft(2, '0'));
+      }
+      return buffer.toString();
+    }
+    return text;
   }
 }
 

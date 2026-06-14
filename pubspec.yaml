@@ -4,9 +4,9 @@ description: >
   over serial. Provides chip detection, flash read/write, MAC/info queries, and
   stub-loader support through an injectable serial transport abstraction.
 version: 0.1.1
-homepage: https://github.com/p-vagnozzi-daee/flutter_esptool
-repository: https://github.com/p-vagnozzi-daee/flutter_esptool
-issue_tracker: https://github.com/p-vagnozzi-daee/flutter_esptool/issues
+homepage: https://github.com/pvagnozzi/flutter_esptool
+repository: https://github.com/pvagnozzi/flutter_esptool
+issue_tracker: https://github.com/pvagnozzi/flutter_esptool/issues
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

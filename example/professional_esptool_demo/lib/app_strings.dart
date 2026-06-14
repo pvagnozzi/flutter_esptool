@@ -26,8 +26,12 @@ class AppStrings {
       'subtitle': 'Protocol simulation and service showcase',
       'theme': 'Theme',
       'language': 'Language',
+      'system': 'System',
       'light': 'Light',
       'dark': 'Dark',
+      'serialPorts': 'Serial ports',
+      'refreshPorts': 'Refresh ports',
+      'noSerialPorts': 'No serial ports detected',
       'connect': 'Connect',
       'detectChip': 'Detect chip',
       'readMac': 'Read MAC',
@@ -296,8 +300,46 @@ class AppStrings {
     }
   };
 
+  static const _languageDisplayNames = <String, String>{
+    'en': 'English',
+    'fr': 'Français',
+    'es': 'Español',
+    'pt': 'Português',
+    'de': 'Deutsch',
+    'it': 'Italiano',
+    'nl': 'Nederlands',
+    'ru': 'Русский',
+    'ar': 'العربية',
+    'he': 'עברית',
+    'zh': '中文',
+    'ja': '日本語',
+    'ko': '한국어',
+  };
+
+  static const _languageFlags = <String, String>{
+    'en': '\u{1F1EC}\u{1F1E7}',
+    'fr': '\u{1F1EB}\u{1F1F7}',
+    'es': '\u{1F1EA}\u{1F1F8}',
+    'pt': '\u{1F1F5}\u{1F1F9}',
+    'de': '\u{1F1E9}\u{1F1EA}',
+    'it': '\u{1F1EE}\u{1F1F9}',
+    'nl': '\u{1F1F3}\u{1F1F1}',
+    'ru': '\u{1F1F7}\u{1F1FA}',
+    'ar': '\u{1F1F8}\u{1F1E6}',
+    'he': '\u{1F1EE}\u{1F1F1}',
+    'zh': '\u{1F1E8}\u{1F1F3}',
+    'ja': '\u{1F1EF}\u{1F1F5}',
+    'ko': '\u{1F1F0}\u{1F1F7}',
+  };
+
   static String t(Locale locale, String key) {
     final lang = _values[locale.languageCode] ?? _values['en']!;
     return lang[key] ?? _values['en']![key] ?? key;
   }
+
+  static String languageDisplayName(Locale locale) =>
+      _languageDisplayNames[locale.languageCode] ?? _languageDisplayNames['en']!;
+
+  static String languageFlag(Locale locale) =>
+      _languageFlags[locale.languageCode] ?? '🏳️';
 }

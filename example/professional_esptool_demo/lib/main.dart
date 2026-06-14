@@ -152,11 +152,11 @@ class _HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<_HomePage> {
-  late final _ScriptedTransport _transport;
-  late final ConnectionService _connectionService;
-  late final ChipDetectionService _chipDetectionService;
-  late final InfoService _infoService;
-  late final FlashService _flashService;
+  late EspTransportInterface _transport;
+  late ConnectionService _connectionService;
+  late ChipDetectionService _chipDetectionService;
+  late InfoService _infoService;
+  late FlashService _flashService;
 
   final List<_LogEntry> _logs = <_LogEntry>[];
   final SerialManager _serialManager = SerialManager();
@@ -171,13 +171,30 @@ class _HomePageState extends State<_HomePage> {
   @override
   void initState() {
     super.initState();
-    _transport = _ScriptedTransport(logger: _onTransportLog);
+    _initializeTransport();
+    _refreshPorts();
+  }
+
+  void _initializeTransport({String? portName}) {
+    final logger = _onTransportLog;
+    
+    // Use scripted demo transport (for demo purposes on Windows)
+    // On supported platforms with real serial hardware, EspTransport can be used
+    _transport = _ScriptedTransport(logger: logger);
+    
     _connectionService = ConnectionService(_transport);
     _chipDetectionService = ChipDetectionService(_transport);
     _infoService = InfoService(
         transport: _transport, chipDetectionService: _chipDetectionService);
     _flashService = FlashService(transport: _transport);
-    _refreshPorts();
+  }
+
+  @override
+  void dispose() {
+    if (_transport.isOpen) {
+      _transport.close();
+    }
+    super.dispose();
   }
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
@@ -246,9 +263,18 @@ class _HomePageState extends State<_HomePage> {
 
   Future<void> _connect() async {
     final selectedPort = _selectedPortName ?? 'DEMO-COM';
-    final result = await _connectionService.connect(EspConfig(
+    
+    // Reinitialize transport with selected port
+    _initializeTransport(portName: selectedPort);
+    
+    final config = EspConfig(
       portName: selectedPort,
-    ));
+      initialBaudRate: 115200,
+      timeout: const Duration(seconds: 5),
+      syncRetries: 16,
+    );
+    
+    final result = await _connectionService.connect(config);
     result.fold(
       (_) {
         setState(() => _connected = true);
@@ -269,9 +295,20 @@ class _HomePageState extends State<_HomePage> {
         _availablePorts = ports;
         final stillAvailable = _selectedPortName != null &&
             ports.any((port) => port.portName == _selectedPortName);
-        _selectedPortName = stillAvailable
+        final newSelection = stillAvailable
             ? _selectedPortName
             : (ports.isNotEmpty ? ports.first.portName : null);
+        
+        // If port selection changed, disconnect and reset state
+        if (newSelection != _selectedPortName) {
+          _selectedPortName = newSelection;
+          _connected = false;
+          _chip = '-';
+          _mac = '-';
+          _flash = '-';
+        } else {
+          _selectedPortName = newSelection;
+        }
       });
       _log('Detected ${ports.length} serial port(s)');
     } on SerialError catch (error) {
@@ -494,7 +531,15 @@ class _HomePageState extends State<_HomePage> {
                                   ? null
                                   : (value) {
                                       if (value != null) {
-                                        setState(() => _selectedPortName = value);
+                                        setState(() {
+                                          _selectedPortName = value;
+                                          _connected = false;
+                                          _chip = '-';
+                                          _mac = '-';
+                                          _flash = '-';
+                                          // Reinitialize transport for new port
+                                          _initializeTransport(portName: value);
+                                        });
                                       }
                                     },
                               items: _availablePorts

@@ -191,7 +191,7 @@ packages:
     source: hosted
     version: "3.1.6"
   platform_serial:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: platform_serial
       sha256: "0001866655b701278b2fc3d74612bec3446f239c6fb275f778b6bc391519ba87"

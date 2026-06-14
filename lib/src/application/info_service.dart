@@ -83,7 +83,10 @@ class InfoService {
 
   String? _manufacturerName(int manufacturerId) {
     return switch (manufacturerId) {
+      0x1C => 'EON',
       0x20 => 'Micron',
+      0xA1 => 'Fudan Micro',
+      0xC2 => 'Macronix',
       0xC8 => 'GigaDevice',
       0xEF => 'Winbond',
       _ => null,

@@ -1,0 +1,256 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: pub get (root)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["pub", "get"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: pub get (esptool_cli)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["pub", "get"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: pub get (esptool_ui)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["pub", "get"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: pub get (all)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Flutter: pub get (root)",
+        "Flutter: pub get (esptool_cli)",
+        "Flutter: pub get (esptool_ui)"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: analyze (all)",
+      "type": "shell",
+      "command": "flutter analyze && cd example/esptool_cli && flutter analyze && cd ../esptool_ui && flutter analyze",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "problemMatcher": "$dart-analyzer"
+    },
+    {
+      "label": "Flutter: test (all non-hardware)",
+      "type": "shell",
+      "command": "flutter test && cd example/esptool_cli && flutter test && cd ../esptool_ui && flutter test",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "problemMatcher": "$dart-test"
+    },
+    {
+      "label": "Flutter: run selected example/platform",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "-d", "${input:flutterDevice}"],
+      "options": { "cwd": "${workspaceFolder}/${input:examplePath}" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: build selected example/target",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "${input:flutterBuildTarget}"],
+      "options": { "cwd": "${workspaceFolder}/${input:examplePath}" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: build selected example/iOS no-codesign",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "ios", "--release", "--no-codesign"],
+      "options": { "cwd": "${workspaceFolder}/${input:examplePath}" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_ui: build Windows",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "windows", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_ui: build Linux",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "linux", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_ui: build macOS",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "macos", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_ui: build Web",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "web", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_ui: build Android APK",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "apk", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_ui: build iOS no-codesign",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "ios", "--release", "--no-codesign"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_ui" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli app: build Windows",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "windows", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli app: build Linux",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "linux", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli app: build macOS",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "macos", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli app: build Web",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "web", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli app: build Android APK",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "apk", "--release"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli app: build iOS no-codesign",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "ios", "--release", "--no-codesign"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli: run Dart CLI help",
+      "type": "shell",
+      "command": "dart",
+      "args": ["run", "bin/esptool.dart", "--help"],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "esptool_cli: run Dart CLI COM22 chip_id",
+      "type": "shell",
+      "command": "dart",
+      "args": [
+        "run",
+        "bin/esptool.dart",
+        "chip_id",
+        "--port",
+        "COM22",
+        "--timeout",
+        "15"
+      ],
+      "options": { "cwd": "${workspaceFolder}/example/esptool_cli" },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "examplePath",
+      "type": "pickString",
+      "description": "Example application",
+      "options": [
+        "example/esptool_ui",
+        "example/esptool_cli"
+      ],
+      "default": "example/esptool_ui"
+    },
+    {
+      "id": "flutterDevice",
+      "type": "pickString",
+      "description": "Flutter target device/platform",
+      "options": [
+        "windows",
+        "linux",
+        "macos",
+        "chrome",
+        "android",
+        "ios"
+      ],
+      "default": "windows"
+    },
+    {
+      "id": "flutterBuildTarget",
+      "type": "pickString",
+      "description": "Flutter build target",
+      "options": [
+        "windows",
+        "linux",
+        "macos",
+        "web",
+        "apk",
+        "ios"
+      ],
+      "default": "windows"
+    }
+  ]
+}

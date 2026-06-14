@@ -39,11 +39,13 @@ class FlashParameters {
 /// Defines parameters for a flash read operation.
 class FlashReadParameters {
   /// Creates [FlashReadParameters].
+  // coverage:ignore-start
   const FlashReadParameters({
     required this.offset,
     required this.size,
     this.onProgress,
   });
+  // coverage:ignore-end
 
   /// The flash offset to read from.
   final int offset;

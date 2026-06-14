@@ -715,14 +715,19 @@ class _HomePageState extends State<_HomePage> {
   }
 
   Future<void> _flashInfo() async {
+    if (!_transport.isOpen) {
+      _log('Connect to a serial port before reading flash info',
+          level: LogLevel.warning);
+      return;
+    }
+
     final result = await _infoService.getFlashId();
     if (!mounted) {
       return;
     }
     result.fold(
       (info) {
-        final desc =
-            '${info.manufacturerName ?? 'Unknown'} - ${info.capacityBytes ?? 0} bytes';
+        final desc = _formatFlashInfo(info);
         setState(() => _flash = desc);
         _log('Flash info: $desc');
       },
@@ -730,6 +735,42 @@ class _HomePageState extends State<_HomePage> {
           _log('Flash info failed: ${error.message}', level: LogLevel.error),
     );
   }
+
+  String _formatFlashInfo(EspFlashInfo info) {
+    final manufacturerHex = _hexByte(info.manufacturerId);
+    final deviceHex = _hexWord((info.deviceId << 8) | info.capacityId);
+    final flashIdHex = _hex24(
+      info.manufacturerId | (info.deviceId << 8) | (info.capacityId << 16),
+    );
+    final manufacturer =
+        info.manufacturerName ?? 'Manufacturer $manufacturerHex';
+    final capacity = _formatCapacity(info.capacityBytes, info.capacityId);
+    return '$manufacturer ($manufacturerHex), device $deviceHex, flash ID $flashIdHex, $capacity';
+  }
+
+  String _formatCapacity(int? bytes, int capacityId) {
+    if (bytes == null || bytes <= 0) {
+      return 'capacity ID ${_hexByte(capacityId)}';
+    }
+    const mib = 1024 * 1024;
+    if (bytes % mib == 0) {
+      return '${bytes ~/ mib} MB ($bytes bytes)';
+    }
+    const kib = 1024;
+    if (bytes % kib == 0) {
+      return '${bytes ~/ kib} KB ($bytes bytes)';
+    }
+    return '$bytes bytes';
+  }
+
+  String _hexByte(int value) =>
+      '0x${(value & 0xFF).toRadixString(16).padLeft(2, '0')}';
+
+  String _hexWord(int value) =>
+      '0x${(value & 0xFFFF).toRadixString(16).padLeft(4, '0')}';
+
+  String _hex24(int value) =>
+      '0x${(value & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
   Future<void> _writeFlash() async {
     if (!_transport.isOpen) {

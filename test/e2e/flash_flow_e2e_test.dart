@@ -312,6 +312,9 @@ void main() {
           EspCommandOpcode.readReg: Queue<EspResponse Function(EspCommand)>()
             ..add((_) =>
                 _successResponse(EspCommandOpcode.readReg, value: 0x00F01D83))
+            // EFUSE prime word read mirrors esptool's ESP32 BLK0 flow.
+            ..add((_) =>
+                _successResponse(EspCommandOpcode.readReg, value: 0x00000000))
             // EFUSE word 2: top two MAC bytes after CRC trimming
             ..add((_) =>
                 _successResponse(EspCommandOpcode.readReg, value: 0x0000EEFF))

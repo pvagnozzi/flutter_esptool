@@ -15,6 +15,9 @@ class ZlibHelper {
       final compressed = ZLibCodec().encode(data);
       return Success<Uint8List>(Uint8List.fromList(compressed));
     } catch (error, stackTrace) {
+      // coverage:ignore-start
+      // ZLibCodec.encode(Uint8List) has no practical invalid input; this keeps
+      // the public Result API defensive if the runtime codec throws.
       return Failure<Uint8List>(
         EspError(
           type: EspErrorType.compressionError,
@@ -22,6 +25,7 @@ class ZlibHelper {
           stackTrace: stackTrace,
         ),
       );
+      // coverage:ignore-end
     }
   }
 

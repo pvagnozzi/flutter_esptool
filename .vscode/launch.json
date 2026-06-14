@@ -1,0 +1,131 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "esptool_ui • Windows",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "windows",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • Linux",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "linux",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • macOS",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "macos",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • Web (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "chrome",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • Android",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "android",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • iOS",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "ios",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • Windows",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "windows",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • Linux",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "linux",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • macOS",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "macos",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • Web (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "chrome",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • Android",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "android",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • iOS",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "deviceId": "ios",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli • Dart CLI (help)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "example/esptool_cli",
+      "program": "bin/esptool.dart",
+      "args": ["--help"],
+      "toolArgs": ["--enable-asserts"]
+    },
+    {
+      "name": "esptool_cli • Dart CLI (COM22 chip_id)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "example/esptool_cli",
+      "program": "bin/esptool.dart",
+      "args": ["chip_id", "--port", "COM22", "--timeout", "15"],
+      "toolArgs": ["--enable-asserts"]
+    }
+  ]
+}

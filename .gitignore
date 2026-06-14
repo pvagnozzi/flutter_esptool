@@ -9,7 +9,10 @@ pubspec_overrides.yaml
 
 # IDEs
 .idea/
-.vscode/
+.vscode/*
+!.vscode/
+!.vscode/launch.json
+!.vscode/tasks.json
 *.iml
 
 # OS
@@ -18,6 +21,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Script reports
+reports/
 
 # Generated
 *.g.dart

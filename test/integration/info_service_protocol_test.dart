@@ -24,6 +24,21 @@ void main() {
     expect(transport.seenWriteReg, isTrue);
   });
 
+  test('getFlashId recognizes the COM22 Fudan Micro manufacturer ID', () async {
+    final transport = _ScriptedInfoTransport(rawJedecId: 0x001840A1);
+    final info = InfoService(transport: transport);
+
+    final result = await info.getFlashId();
+
+    expect(result.isSuccess, isTrue);
+    final value = (result as Success<EspFlashInfo>).value;
+    expect(value.manufacturerId, 0xA1);
+    expect(value.deviceId, 0x40);
+    expect(value.capacityId, 0x18);
+    expect(value.manufacturerName, 'Fudan Micro');
+    expect(value.capacityBytes, 1 << 0x18);
+  });
+
   test('getMac formats ESP32 EFUSE words like esptool.py', () async {
     final transport = _ScriptedInfoTransport();
     final info = InfoService(transport: transport);
@@ -36,6 +51,11 @@ void main() {
 }
 
 class _ScriptedInfoTransport implements EspTransportInterface {
+  _ScriptedInfoTransport({int rawJedecId = 0x001840EF})
+      : _rawJedecId = rawJedecId;
+
+  final int _rawJedecId;
+
   static const int _chipMagicRegister = 0x40001000;
   static const int _esp32EfuseMacWord1Register = 0x3FF5A004;
   static const int _esp32EfuseMacWord2Register = 0x3FF5A008;
@@ -54,7 +74,6 @@ class _ScriptedInfoTransport implements EspTransportInterface {
     _esp32EfuseMacPrimeRegister: 0x0000A200,
     _spiUsrReg: 0,
     _spiUsr2Reg: 0,
-    _spiW0Reg: 0x001840EF,
   };
 
   bool seenSpiAttach = false;
@@ -91,7 +110,8 @@ class _ScriptedInfoTransport implements EspTransportInterface {
         seenSpiAttach = true;
         return _ok(EspCommandOpcode.spiAttach);
       case EspCommandOpcode.readReg:
-        final addr = ByteData.sublistView(command.data).getUint32(0, Endian.little);
+        final addr =
+            ByteData.sublistView(command.data).getUint32(0, Endian.little);
         if (addr == _spiCmdReg) {
           _cmdBusyReads += 1;
           if (_cmdBusyReads == 1) {
@@ -108,7 +128,7 @@ class _ScriptedInfoTransport implements EspTransportInterface {
         _registers[addr] = value;
         if (addr == _spiCmdReg && value == _spiCmdUsr) {
           _cmdBusyReads = 0;
-          _registers[_spiW0Reg] = 0x001840EF;
+          _registers[_spiW0Reg] = _rawJedecId;
         }
         return _ok(EspCommandOpcode.writeReg);
       default:

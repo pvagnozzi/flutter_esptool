@@ -105,6 +105,9 @@ class EspImageParser {
         ),
       );
     } catch (error, stackTrace) {
+      // coverage:ignore-start
+      // Bounds and checksum failures are returned explicitly above. This catch
+      // keeps parsing defensive against unexpected typed-data/runtime failures.
       return Failure<EspImageHeader>(
         EspError(
           type: EspErrorType.imageParseError,
@@ -112,6 +115,7 @@ class EspImageParser {
           stackTrace: stackTrace,
         ),
       );
+      // coverage:ignore-end
     }
   }
 

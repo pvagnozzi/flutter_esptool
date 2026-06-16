@@ -64,6 +64,7 @@ flutter test test/unit/transport/slip_codec_test.dart --plain-name "round-trips 
 
 - [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) — system architecture, service boundaries, and protocol data flow
 - [`doc/WORKFLOWS.md`](doc/WORKFLOWS.md) — setup/test/build workflows with Mermaid diagrams
+- [`doc/PROJECT_OPERATIONS_AND_QUALITY_GUIDE.md`](doc/PROJECT_OPERATIONS_AND_QUALITY_GUIDE.md) — professional operations, security, and full-spectrum testing guide
 - [`scripts/README.md`](scripts/README.md) — cross-platform automation scripts
 - [`doc/PUBLISHING.md`](doc/PUBLISHING.md) — pub.dev and release process
 - [`doc/GITFLOW.md`](doc/GITFLOW.md) — branching and version strategy

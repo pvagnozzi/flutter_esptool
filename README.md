@@ -4,7 +4,7 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.10%2B-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2E7D32?style=for-the-badge)](LICENSE)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-24292E?style=for-the-badge&logo=github)](.github/workflows)
-[![pub.dev](https://img.shields.io/badge/pub-ready-FF6F00?style=for-the-badge&logo=dart)](https://pub.dev)
+[![pub.dev](https://img.shields.io/badge/pub.dev-flutter__esptool-FF6F00?style=for-the-badge&logo=dart)](https://pub.dev/packages/flutter_esptool)
 
 > 🔌 A professional Flutter package for ESP8266/ESP32 serial bootloader operations:
 > chip detection, flash write/erase/read flows, MAC queries, and protocol utilities.
@@ -25,7 +25,7 @@
 
 ```yaml
 dependencies:
-  flutter_esptool: ^0.1.1
+  flutter_esptool: ^0.1.3
 ```
 
 ---
@@ -35,7 +35,11 @@ dependencies:
 ```bash
 flutter pub get
 flutter analyze
-flutter test --coverage
+flutter test
+flutter test test\unit
+flutter test test\integration
+flutter test test\e2e
+dart pub publish --dry-run
 ```
 
 Cross-platform automation lives in [`scripts/`](scripts/README.md):
@@ -66,7 +70,7 @@ flutter test test/unit/transport/slip_codec_test.dart --plain-name "round-trips 
 - [`doc/WORKFLOWS.md`](doc/WORKFLOWS.md) — setup/test/build workflows with Mermaid diagrams
 - [`doc/PROJECT_OPERATIONS_AND_QUALITY_GUIDE.md`](doc/PROJECT_OPERATIONS_AND_QUALITY_GUIDE.md) — professional operations, security, and full-spectrum testing guide
 - [`scripts/README.md`](scripts/README.md) — cross-platform automation scripts
-- [`doc/PUBLISHING.md`](doc/PUBLISHING.md) — pub.dev and release process
+- [`doc/PUBLISHING.md`](doc/PUBLISHING.md) — pub.dev trusted-publishing release process
 - [`doc/GITFLOW.md`](doc/GITFLOW.md) — branching and version strategy
 - [`doc/DEMO_APP.md`](doc/DEMO_APP.md) — demo features and execution
 - [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — Copilot project guidance
@@ -106,3 +110,9 @@ flowchart LR
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## 🔐 CI, security, and merge gates
+
+- PR open/update events trigger analyzer + unit/integration/e2e test jobs.
+- Owner-authored PRs targeting `main` are auto-approved and auto-merged only after successful PR validation.
+- Release publication uses GitHub OIDC trusted publishing (no long-lived `PUB_DEV_PUBLISH_TOKEN` secret).

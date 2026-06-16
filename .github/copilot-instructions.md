@@ -8,6 +8,9 @@ Run commands from the repository root (`flutter_esptool`):
 flutter pub get
 flutter analyze
 flutter test
+flutter test test\unit
+flutter test test\integration
+flutter test test\e2e
 ```
 
 Run one test scope at a time:
@@ -91,3 +94,9 @@ flutter test test\unit\infrastructure
   - edge cases (empty input, retry states, long-running operations).
 - Keep tests deterministic: avoid wall-clock dependency and non-deterministic ordering.
 - Prefer reusable test fixtures/builders over duplicated inline setup.
+
+## PR/release automation expectations
+
+- PR checks must include analyzer + unit/integration/e2e scopes.
+- Owner PR auto-approval/merge is allowed only after all PR validation jobs succeed.
+- Publish workflow should use trusted publishing (OIDC), not long-lived pub.dev secrets.

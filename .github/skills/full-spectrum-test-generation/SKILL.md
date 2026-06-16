@@ -25,3 +25,4 @@ Expected outputs:
 - generated or updated tests with deterministic fixtures;
 - explicit assertions on bytes/protocol fields where applicable;
 - clear gap report for any intentionally deferred tests.
+- execution evidence for `flutter test test\unit`, `flutter test test\integration`, and `flutter test test\e2e`.

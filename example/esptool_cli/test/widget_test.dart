@@ -8,12 +8,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:esptool_cli/main.dart';
+import 'package:esptool_cli/main.dart' as app;
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const app.MyApp());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
@@ -30,7 +30,7 @@ void main() {
 
   testWidgets('renders expected shell title and supports multiple increments',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const app.MyApp());
 
     expect(find.text('Flutter Demo Home Page'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
@@ -41,5 +41,12 @@ void main() {
     await tester.pump();
 
     expect(find.text('2'), findsOneWidget);
+  });
+
+  testWidgets('top-level main boots app widget tree', (WidgetTester tester) async {
+    app.main();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flutter Demo Home Page'), findsOneWidget);
   });
 }

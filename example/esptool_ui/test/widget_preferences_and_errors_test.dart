@@ -1,4 +1,4 @@
-import 'package:esptool_ui/main.dart';
+import 'package:esptool_ui/main.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +12,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1100, 900));
 
       await tester.pumpWidget(
-        EsptoolUiApp(
+        app.EsptoolUiApp(
           splashDuration: Duration.zero,
           serialPortsLoader: () async => const <SerialPortInfo>[
             SerialPortInfo(
@@ -45,7 +45,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1100, 900));
 
       await tester.pumpWidget(
-        EsptoolUiApp(
+        app.EsptoolUiApp(
           splashDuration: Duration.zero,
           serialPortsLoader: () async => const <SerialPortInfo>[
             SerialPortInfo(
@@ -66,8 +66,8 @@ void main() {
       await tester.tap(find.text('Dark').last);
       await tester.pumpAndSettle();
 
-      final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
-      expect(app.themeMode, ThemeMode.dark);
+      final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(materialApp.themeMode, ThemeMode.dark);
     },
   );
 
@@ -78,7 +78,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1100, 900));
 
       await tester.pumpWidget(
-        EsptoolUiApp(
+        app.EsptoolUiApp(
           splashDuration: Duration.zero,
           serialPortsLoader: () async {
             throw SerialError(
@@ -110,7 +110,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1100, 900));
 
       await tester.pumpWidget(
-        EsptoolUiApp(
+        app.EsptoolUiApp(
           splashDuration: Duration.zero,
           serialPortsLoader: () async => throw StateError('boom'),
           transportFactory: (_) => _NoopTransport(),
@@ -126,6 +126,7 @@ void main() {
       );
     },
   );
+
 }
 
 class _NoopTransport implements EspTransportInterface {

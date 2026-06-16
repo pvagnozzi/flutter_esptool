@@ -9,7 +9,9 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class WriteFlashCommand extends Command<void> {
-  WriteFlashCommand() {
+  WriteFlashCommand({
+    EspTransportInterface Function()? transportFactory,
+  }) : _transportFactory = transportFactory ?? EspTransport.new {
     argParser
       ..addOption(
         'port',
@@ -27,6 +29,8 @@ class WriteFlashCommand extends Command<void> {
       ..addOption('baud', abbr: 'b', defaultsTo: '115200', help: 'Baud rate')
       ..addFlag('verify', defaultsTo: true, help: 'Verify written data');
   }
+
+  final EspTransportInterface Function() _transportFactory;
 
   @override
   String get name => 'write_flash';
@@ -48,13 +52,13 @@ class WriteFlashCommand extends Command<void> {
 
     if (filename == null) {
       stderr.writeln('Error: --filename is required');
-      exit(1);
+      exitCommand(1);
     }
 
     final file = File(filename);
     if (!await file.exists()) {
       stderr.writeln('Error: File not found: $filename');
-      exit(1);
+      exitCommand(1);
     }
 
     final data = await file.readAsBytes();
@@ -68,7 +72,7 @@ class WriteFlashCommand extends Command<void> {
       timeout: const Duration(seconds: 5),
       syncRetries: 16,
     );
-    final transport = EspTransport();
+    final transport = _transportFactory();
     final flash = FlashService(transport: transport);
 
     try {
@@ -83,13 +87,13 @@ class WriteFlashCommand extends Command<void> {
         stderr.writeln(
           'Failed to write: ${(result as Failure<void>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       stdout.writeln('Write complete!');
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }

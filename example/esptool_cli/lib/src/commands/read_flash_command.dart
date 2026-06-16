@@ -10,7 +10,9 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class ReadFlashCommand extends Command<void> {
-  ReadFlashCommand() {
+  ReadFlashCommand({
+    EspTransportInterface Function()? transportFactory,
+  }) : _transportFactory = transportFactory ?? EspTransport.new {
     argParser
       ..addOption(
         'port',
@@ -40,6 +42,8 @@ class ReadFlashCommand extends Command<void> {
       );
   }
 
+  final EspTransportInterface Function() _transportFactory;
+
   @override
   String get name => 'read_flash';
 
@@ -65,7 +69,7 @@ class ReadFlashCommand extends Command<void> {
 
     if (filename == null || filename.trim().isEmpty) {
       stderr.writeln('Error: --filename is required');
-      exit(1);
+      exitCommand(1);
     }
 
     stdout.writeln(
@@ -78,7 +82,7 @@ class ReadFlashCommand extends Command<void> {
       timeout: Duration(seconds: timeout),
       syncRetries: 16,
     );
-    final transport = EspTransport();
+    final transport = _transportFactory();
     final flash = FlashService(transport: transport);
 
     try {
@@ -92,7 +96,7 @@ class ReadFlashCommand extends Command<void> {
         stderr.writeln(
           'Failed to read flash: ${(result as Failure<Uint8List>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       final data = (result as Success<Uint8List>).value;
@@ -100,7 +104,7 @@ class ReadFlashCommand extends Command<void> {
       stdout.writeln('Read complete! Wrote ${data.length} bytes to $filename');
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }

@@ -8,6 +8,9 @@ Run commands from the repository root (`flutter_esptool`):
 flutter pub get
 flutter analyze
 flutter test
+flutter test test\unit
+flutter test test\integration
+flutter test test\e2e
 ```
 
 Run one test scope at a time:
@@ -65,3 +68,35 @@ flutter test test\unit\infrastructure
 - **Protocol tests should assert bytes, not only booleans:** in transport tests, validate encoded packet contents and decoded response fields (see `test/integration/transport_mock_test.dart`).
 - **Use deterministic scripted command queues for flow tests:** e2e-style tests in this repo model command/response order by opcode queues (`ScriptedTransport`) to verify multi-step flashing logic.
 - **Partial frame behavior is first-class:** when changing transport/SLIP logic, keep coverage for split reads and frame accumulation semantics (`sendCommand accumulates partial packets`, `partial packet accumulation works across split reads`).
+
+## Security and vulnerability management
+
+- Treat every dependency change as a security event: review changelogs and CVE advisories before merging.
+- Prefer fixed or bounded versions for security-sensitive tooling used in CI and release workflows.
+- For vulnerability triage, classify findings as:
+  - `critical/high`: block release and require remediation.
+  - `medium`: remediate before the next tagged release.
+  - `low`: document and track with owner + due date.
+- When touching transport, parser, compression, or file handling code:
+  - validate bounds and malformed payload behavior;
+  - add/adjust tests for bad-path and edge-path inputs;
+  - map failures to typed `EspErrorType` instead of silent fallback behavior.
+
+## Test automation expectations (including UI)
+
+- Any logic change should include or update:
+  - unit tests for pure logic and branch behavior;
+  - integration tests for service + transport interaction;
+  - e2e/scripted-flow tests for multi-step protocol workflows.
+- For `example/esptool_ui`, include widget tests for:
+  - good path (expected success UX),
+  - bad path (typed errors surfaced clearly),
+  - edge cases (empty input, retry states, long-running operations).
+- Keep tests deterministic: avoid wall-clock dependency and non-deterministic ordering.
+- Prefer reusable test fixtures/builders over duplicated inline setup.
+
+## PR/release automation expectations
+
+- PR checks must include analyzer + unit/integration/e2e scopes.
+- Owner PR auto-approval/merge is allowed only after all PR validation jobs succeed.
+- Publish workflow should use trusted publishing (OIDC), not long-lived pub.dev secrets.

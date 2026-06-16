@@ -1,0 +1,47 @@
+name: Owner PR Auto-Approve and Merge
+
+on:
+  workflow_run:
+    workflows: ["PR Validation"]
+    types: [completed]
+
+jobs:
+  approve-and-merge:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Auto-approve and merge owner PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No pull request associated with this workflow run."
+            exit 0
+          fi
+
+          BASE_REF=$(gh pr view "$PR_NUMBER" --json baseRefName -q '.baseRefName')
+          if [ "$BASE_REF" != "main" ]; then
+            echo "PR #$PR_NUMBER targets '$BASE_REF', skipping."
+            exit 0
+          fi
+
+          AUTHOR=$(gh pr view "$PR_NUMBER" --json author -q '.author.login')
+          if [ "$AUTHOR" != "$REPO_OWNER" ]; then
+            echo "PR #$PR_NUMBER author '$AUTHOR' is not repository owner '$REPO_OWNER', skipping."
+            exit 0
+          fi
+
+          HEAD_REPO=$(gh pr view "$PR_NUMBER" --json headRepositoryOwner -q '.headRepositoryOwner.login')
+          if [ "$HEAD_REPO" != "$REPO_OWNER" ]; then
+            echo "PR #$PR_NUMBER comes from fork context, skipping."
+            exit 0
+          fi
+
+          gh pr review "$PR_NUMBER" --approve --body "Automated approval after successful PR Validation gates."
+          gh pr merge "$PR_NUMBER" --squash --delete-branch --auto

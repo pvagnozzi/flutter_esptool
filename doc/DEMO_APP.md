@@ -98,6 +98,8 @@ dart run bin/esptool.dart flash_id --port COM22 --timeout 15
 
 ## Tests
 
+Default quality gates emphasize deterministic good-path, bad-path, and edge-case coverage without hardware.
+
 Hardware integration test (explicit port required):
 
 ```bash

@@ -23,6 +23,7 @@ jobs:
       - name: Auto-approve and merge owner PRs
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           REPO_OWNER: ${{ github.repository_owner }}
           PR_NUMBER: >-
             ${{ github.event.workflow_run.pull_requests[0].number }}

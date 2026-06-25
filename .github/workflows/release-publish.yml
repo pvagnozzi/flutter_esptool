@@ -3,12 +3,22 @@ name: Release and Publish
 on:
   pull_request:
     types: [closed]
-    branches: [main]
+    branches:
+      - stable
+      - main
   workflow_dispatch:
+    inputs:
+      prerelease:
+        description: "Mark as pre-release (true for stable branch manual runs)"
+        required: false
+        default: "false"
 
 jobs:
   release-and-publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,14 +51,53 @@ jobs:
           VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release
+      - name: Check if version already published on pub.dev
+        id: pub_check
+        shell: bash
+        run: |
+          VERSION="${{ steps.package_version.outputs.value }}"
+          PKG=$(grep '^name:' pubspec.yaml | awk '{print $2}')
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://pub.dev/api/packages/${PKG}/versions/${VERSION}")
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "Version $VERSION already published — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version $VERSION not yet published — proceeding."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine release type
+        id: release_type
+        shell: bash
+        run: |
+          TARGET="${{ github.base_ref }}"
+          DISPATCH_PRE="${{ github.event.inputs.prerelease }}"
+          VERSION="${{ steps.package_version.outputs.value }}"
+
+          # stable branch or manual pre-release flag → pre-release
+          if [ "$TARGET" = "stable" ] || [ "$DISPATCH_PRE" = "true" ]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *"-"* ]]; then
+            # version string contains a pre-release suffix (e.g. 1.0.0-rc.1)
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.package_version.outputs.value }}
           name: v${{ steps.package_version.outputs.value }}
           generate_release_notes: true
+          prerelease: ${{ steps.release_type.outputs.is_prerelease }}
+          make_latest: >
+            ${{ steps.release_type.outputs.is_prerelease == 'false' }}
+        continue-on-error: true   # skip if tag already exists
 
       - name: Publish to pub.dev
+        if: steps.pub_check.outputs.skip == 'false'
         run: dart pub publish --force
         env:
           PUB_ENVIRONMENT: github-actions:release

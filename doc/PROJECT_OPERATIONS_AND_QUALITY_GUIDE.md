@@ -164,9 +164,9 @@ flowchart LR
   Dev[Developer change] --> Analyze[flutter analyze]
   Analyze --> Unit[Unit tests]
   Unit --> Integration[Integration tests]
-  Integration --> UI[UI tests]
-  UI --> E2E[E2E/scripted tests]
-  E2E --> Security[Dependency + vulnerability checks]
+  Integration --> E2E[E2E/scripted tests]
+  E2E --> UI[UI tests]
+  UI --> Security[Dependency + vulnerability checks]
   Security --> PublishGate{Release criteria met?}
   PublishGate -- yes --> Tag[Tag + publish readiness]
   PublishGate -- no --> Remediate[Fix and re-run]
@@ -206,6 +206,12 @@ Release readiness requires:
 2. Security triage completed with no unresolved high/critical vulnerabilities.
 3. Regression coverage for impacted good/bad/edge scenarios.
 4. Changelog/version alignment for release candidates.
+
+### 7.1 PR automation gate
+
+1. `PR Validation` runs `analyze`, `unit`, `integration`, and `e2e` jobs on PR open/update.
+2. Only successful workflow runs are eligible for owner PR auto-approval and auto-merge to `main`.
+3. Publication remains downstream of merge on `main`, preserving a single gated release path.
 
 ## 8. Recommended automation roles
 

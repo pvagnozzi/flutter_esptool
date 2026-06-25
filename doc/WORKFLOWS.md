@@ -96,6 +96,26 @@ flowchart TD
   Skipped --> Report
 ```
 
+## GitHub PR/release workflow
+
+```mermaid
+flowchart TD
+  PR[PR opened or updated] --> Analyze[Analyze job]
+  PR --> Unit[Unit tests job]
+  PR --> Integration[Integration tests job]
+  PR --> E2E[E2E tests job]
+  Analyze --> Gates{All green?}
+  Unit --> Gates
+  Integration --> Gates
+  E2E --> Gates
+  Gates -- no --> Fix[Fix and push]
+  Gates -- yes --> OwnerCheck{PR author is repo owner and target is main?}
+  OwnerCheck -- no --> ManualReview[Normal review flow]
+  OwnerCheck -- yes --> AutoApprove[Auto-approve workflow]
+  AutoApprove --> AutoMerge[Auto-merge workflow]
+  AutoMerge --> Release[Release/publish workflow]
+```
+
 ## Host capability matrix
 
 ```mermaid

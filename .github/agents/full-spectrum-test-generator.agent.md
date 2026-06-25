@@ -28,5 +28,5 @@ Operational workflow:
 
 1. Build a per-file test matrix (`file -> unit/integration/e2e/ui`).
 2. Generate missing tests before modifying production code expectations.
-3. Run targeted test scopes first, then broader scopes if needed.
+3. Run targeted test scopes first (`flutter test test\unit`, `flutter test test\integration`, `flutter test test\e2e`), then broader scopes if needed.
 4. Report uncovered residual risks with concrete follow-up test tasks.

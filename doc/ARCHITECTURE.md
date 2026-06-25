@@ -178,6 +178,7 @@ flowchart TD
 
 - Unit tests target codec, parser, model, and defensive branch behavior.
 - Integration/e2e tests use scripted transport responses to validate protocol workflows without hardware.
+- Scenario coverage is expected to include good path, bad path, and edge cases for each changed workflow.
 - Hardware tests are opt-in and require an explicit port.
 - Root package coverage is expected to stay at 100% for the current instrumented production lines.
 

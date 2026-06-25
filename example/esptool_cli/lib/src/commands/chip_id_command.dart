@@ -9,7 +9,9 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class ChipIdCommand extends Command<void> {
-  ChipIdCommand() {
+  ChipIdCommand({
+    EspTransportInterface Function()? transportFactory,
+  }) : _transportFactory = transportFactory ?? EspTransport.new {
     argParser
       ..addOption(
         'port',
@@ -25,6 +27,8 @@ class ChipIdCommand extends Command<void> {
         help: 'Timeout in seconds',
       );
   }
+
+  final EspTransportInterface Function() _transportFactory;
 
   @override
   String get name => 'chip_id';
@@ -49,7 +53,7 @@ class ChipIdCommand extends Command<void> {
       syncRetries: 16,
     );
 
-    final transport = EspTransport();
+    final transport = _transportFactory();
 
     try {
       final connection = ConnectionService(transport);
@@ -62,7 +66,7 @@ class ChipIdCommand extends Command<void> {
         stderr.writeln(
           'Failed to detect chip: ${(detectResult as Failure<EspChipInfo>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       final chipInfo = (detectResult as Success<EspChipInfo>).value;
@@ -73,7 +77,7 @@ class ChipIdCommand extends Command<void> {
       stdout.writeln('MAC Address: ${chipInfo.macAddress}');
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }

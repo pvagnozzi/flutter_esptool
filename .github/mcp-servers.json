@@ -15,10 +15,20 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-fetch"]
     },
+    "vulnerability-intel": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
     "memory": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "testing-artifacts": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "reports"]
     },
     "sequential-thinking": {
       "type": "stdio",

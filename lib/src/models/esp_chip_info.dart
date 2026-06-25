@@ -2,7 +2,25 @@
 // Licensed under the MIT License.
 
 /// Supported ESP chip families.
-enum ChipFamily { esp8266, esp32, esp32s2, esp32s3, esp32c3, unknown }
+enum ChipFamily {
+  /// The Espressif ESP8266 SoC.
+  esp8266,
+
+  /// The Espressif ESP32 SoC.
+  esp32,
+
+  /// The Espressif ESP32-S2 SoC.
+  esp32s2,
+
+  /// The Espressif ESP32-S3 SoC.
+  esp32s3,
+
+  /// The Espressif ESP32-C3 SoC.
+  esp32c3,
+
+  /// An unrecognised or unsupported chip.
+  unknown,
+}
 
 /// Describes a detected ESP chip.
 class EspChipInfo {

@@ -8,9 +8,16 @@ import 'package:flutter_esptool/src/models/esp_result.dart';
 
 /// Placeholder stub loader implementation.
 class StubLoaderService implements StubLoaderInterface {
+  /// Whether the stub is currently loaded into device RAM.
+  ///
+  /// This placeholder always returns `false`.
   @override
   bool get isLoaded => false;
 
+  /// Always returns [EspErrorType.stubNotAvailable].
+  ///
+  /// Bundle esptool stub binaries as Flutter assets and provide a
+  /// custom [StubLoaderInterface] implementation for production use.
   @override
   Future<Result<void>> loadStub(ChipFamily family) async {
     return const Failure<void>(

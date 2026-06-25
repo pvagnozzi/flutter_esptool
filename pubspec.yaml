@@ -7,6 +7,13 @@ homepage: https://github.com/pvagnozzi/flutter_esptool
 repository: https://github.com/pvagnozzi/flutter_esptool
 issue_tracker: https://github.com/pvagnozzi/flutter_esptool/issues
 
+topics:
+  - esp32
+  - esp8266
+  - serial
+  - iot
+  - embedded
+
 environment:
   sdk: ">=3.0.0 <4.0.0"
   flutter: ">=3.10.0"

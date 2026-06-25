@@ -1,0 +1,34 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEAT] "
+labels: [enhancement]
+assignees: [pvagnozzi]
+body:
+  - type: markdown
+    attributes:
+      value: "## Feature Request"
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Clear description of the feature
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this needed?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: How should it work?
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target Platform
+      multiple: true
+      options: [Linux, macOS, Windows, Android, iOS, All]

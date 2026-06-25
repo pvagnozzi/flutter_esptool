@@ -1,0 +1,4 @@
+#!/bin/sh
+echo "📦 post-merge: flutter pub get..."
+flutter pub get
+echo "ℹ️  Reminder: update CHANGELOG.md if this merge introduces user-visible changes."

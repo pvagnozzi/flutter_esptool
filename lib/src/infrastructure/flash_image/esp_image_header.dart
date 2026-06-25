@@ -7,13 +7,52 @@ import 'dart:typed_data';
 const int espImageMagic = 0xE9;
 
 /// Supported flash bus modes in ESP boot images.
-enum FlashMode { qio, qout, dio, dout }
+enum FlashMode {
+  /// Quad I/O mode (command, address, and data on four lines).
+  qio,
+
+  /// Quad output mode (data on four lines, command and address on one).
+  qout,
+
+  /// Dual I/O mode (command, address, and data on two lines).
+  dio,
+
+  /// Dual output mode (data on two lines, command and address on one).
+  dout,
+}
 
 /// Supported flash frequencies in ESP boot images.
-enum FlashFreq { f40m, f26m, f20m, f80m }
+enum FlashFreq {
+  /// 40 MHz flash clock frequency.
+  f40m,
+
+  /// 26 MHz flash clock frequency.
+  f26m,
+
+  /// 20 MHz flash clock frequency.
+  f20m,
+
+  /// 80 MHz flash clock frequency.
+  f80m,
+}
 
 /// Supported flash sizes in ESP boot images.
-enum FlashSize { s1mb, s2mb, s4mb, s8mb, s16mb }
+enum FlashSize {
+  /// 1 MB flash.
+  s1mb,
+
+  /// 2 MB flash.
+  s2mb,
+
+  /// 4 MB flash.
+  s4mb,
+
+  /// 8 MB flash.
+  s8mb,
+
+  /// 16 MB flash.
+  s16mb,
+}
 
 /// Describes a single ESP image segment.
 class EspImageSegment {

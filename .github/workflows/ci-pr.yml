@@ -85,3 +85,30 @@ jobs:
 
       - name: Run e2e tests
         run: flutter test test/e2e
+
+  coverage:
+    name: Coverage report
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter test --coverage test/unit
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
+      - name: Check coverage threshold
+        run: |
+          LINES=$(grep -c "^DA:" coverage/lcov.info || echo 0)
+          HIT=$(grep "^DA:.*,[^0]" coverage/lcov.info | wc -l || echo 0)
+          PCT=$((HIT * 100 / LINES))
+          echo "Coverage: $PCT%"
+          if [ "$PCT" -lt 70 ]; then
+            echo "Coverage $PCT% < 70% threshold"
+            exit 1
+          fi

@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/pvagnozzi/flutter_esptool/discussions
+    about: Questions and general discussion
+  - name: Security
+    url: >-
+      https://github.com/pvagnozzi/flutter_esptool/security/advisories/new
+    about: Report a security vulnerability

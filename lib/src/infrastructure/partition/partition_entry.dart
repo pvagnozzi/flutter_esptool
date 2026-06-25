@@ -2,19 +2,45 @@
 // Licensed under the MIT License.
 
 /// The top-level ESP partition types.
-enum PartitionType { app, data, unknown }
+enum PartitionType {
+  /// Application (code) partition.
+  app,
+
+  /// Data partition.
+  data,
+
+  /// An unrecognised partition type.
+  unknown,
+}
 
 /// Common ESP partition subtypes.
 enum PartitionSubtype {
+  /// Factory default application image.
   factory,
+
+  /// OTA slot 0.
   ota0,
+
+  /// OTA slot 1.
   ota1,
+
+  /// Non-volatile storage (NVS) data partition.
   nvs,
+
+  /// PHY RF calibration data partition.
   phy,
+
+  /// Core-dump data partition.
   coredump,
+
+  /// SPIFFS filesystem partition.
   spiffs,
+
+  /// FAT filesystem partition.
   fat,
-  unknown
+
+  /// An unrecognised partition subtype.
+  unknown,
 }
 
 /// Describes a single ESP partition table entry.

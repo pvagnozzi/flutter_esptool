@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+echo "🧪 pre-push: running unit tests..."
+flutter test test/unit --no-pub 2>&1 || {
+  echo "❌ Unit tests failed."
+  exit 1
+}
+echo "📦 pre-push: dart pub publish --dry-run..."
+dart pub publish --dry-run 2>&1 || {
+  echo "❌ Publish dry-run failed."
+  exit 1
+}
+echo "✅ pre-push passed."

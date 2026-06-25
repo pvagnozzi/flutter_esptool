@@ -4,13 +4,15 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   release-and-publish:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - name: Checkout
@@ -45,11 +47,6 @@ jobs:
           tag_name: v${{ steps.package_version.outputs.value }}
           name: v${{ steps.package_version.outputs.value }}
           generate_release_notes: true
-
-      - name: Configure pub.dev credentials
-        run: dart pub token add https://pub.dev --env-var PUB_DEV_PUBLISH_TOKEN
-        env:
-          PUB_DEV_PUBLISH_TOKEN: ${{ secrets.PUB_DEV_PUBLISH_TOKEN }}
 
       - name: Publish to pub.dev
         run: dart pub publish --force

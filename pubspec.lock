@@ -150,9 +150,10 @@ packages:
   platform_serial:
     dependency: "direct main"
     description:
-      path: "third_party/platform_serial"
-      relative: true
-    source: path
+      name: platform_serial
+      sha256: cff0f13c38426408fbf0fd53830d6dda644cf3163e252ac742ebb34bd5b6dd55
+      url: "https://pub.dev"
+    source: hosted
     version: "0.1.2"
   sky_engine:
     dependency: transitive

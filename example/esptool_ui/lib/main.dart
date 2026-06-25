@@ -13,6 +13,7 @@ typedef SerialPortsLoader = Future<List<SerialPortInfo>> Function();
 typedef EspTransportFactory = EspTransportInterface Function(
   EspTransportLogger? logger,
 );
+typedef BinFilePicker = Future<XFile?> Function();
 
 class _FlashImageSpec {
   const _FlashImageSpec({
@@ -29,11 +30,26 @@ void main() {
 }
 
 EspTransportInterface _defaultTransportFactory(EspTransportLogger? logger) {
-  return EspTransport(logger: logger);
+  // Wrap the real transport with retry (3 attempts on transient errors) and a
+  // circuit breaker (opens after 5 consecutive failures, probes after 30 s)
+  // so transient serial glitches are recovered transparently in the UI.
+  return EspResilientTransport(
+    EspTransport(logger: logger),
+    retryPolicy: const EspRetryPolicy(maxAttempts: 3),
+    circuitBreaker: EspCircuitBreaker(failureThreshold: 5),
+  );
 }
 
 Future<List<SerialPortInfo>> _defaultSerialPortsLoader() {
   return SerialManager().getAvailablePorts();
+}
+
+Future<XFile?> _defaultBinFilePicker() {
+  return openFile(
+    acceptedTypeGroups: const <XTypeGroup>[
+      XTypeGroup(label: 'ESP binary', extensions: <String>['bin']),
+    ],
+  );
 }
 
 class EsptoolUiApp extends StatefulWidget {
@@ -41,11 +57,13 @@ class EsptoolUiApp extends StatefulWidget {
     super.key,
     this.serialPortsLoader,
     this.transportFactory = _defaultTransportFactory,
+    this.binFilePicker = _defaultBinFilePicker,
     this.splashDuration = const Duration(milliseconds: 1600),
   });
 
   final SerialPortsLoader? serialPortsLoader;
   final EspTransportFactory transportFactory;
+  final BinFilePicker binFilePicker;
   final Duration splashDuration;
 
   @override
@@ -91,6 +109,7 @@ class _EsptoolUiAppState extends State<EsptoolUiApp> {
         serialPortsLoader:
             widget.serialPortsLoader ?? _defaultSerialPortsLoader,
         transportFactory: widget.transportFactory,
+        binFilePicker: widget.binFilePicker,
       ),
     );
   }
@@ -105,6 +124,7 @@ class _SplashGate extends StatefulWidget {
     required this.splashDuration,
     required this.serialPortsLoader,
     required this.transportFactory,
+    required this.binFilePicker,
   });
 
   final Locale locale;
@@ -114,6 +134,7 @@ class _SplashGate extends StatefulWidget {
   final Duration splashDuration;
   final SerialPortsLoader serialPortsLoader;
   final EspTransportFactory transportFactory;
+  final BinFilePicker binFilePicker;
 
   @override
   State<_SplashGate> createState() => _SplashGateState();
@@ -142,6 +163,7 @@ class _SplashGateState extends State<_SplashGate> {
         themeMode: widget.themeMode,
         serialPortsLoader: widget.serialPortsLoader,
         transportFactory: widget.transportFactory,
+        binFilePicker: widget.binFilePicker,
       );
     }
 
@@ -187,7 +209,9 @@ class _FlashImageDraft {
 }
 
 class _WriteFlashDialog extends StatefulWidget {
-  const _WriteFlashDialog();
+  const _WriteFlashDialog({this.pickFile = _defaultBinFilePicker});
+
+  final BinFilePicker pickFile;
 
   @override
   State<_WriteFlashDialog> createState() => _WriteFlashDialogState();
@@ -219,11 +243,7 @@ class _WriteFlashDialogState extends State<_WriteFlashDialog> {
   }
 
   Future<void> _selectFile(_FlashImageDraft row) async {
-    final file = await openFile(
-      acceptedTypeGroups: const <XTypeGroup>[
-        XTypeGroup(label: 'ESP binary', extensions: <String>['bin']),
-      ],
-    );
+    final file = await widget.pickFile();
     if (!mounted || file == null) {
       return;
     }
@@ -374,6 +394,7 @@ class _HomePage extends StatefulWidget {
     required this.themeMode,
     required this.serialPortsLoader,
     required this.transportFactory,
+    required this.binFilePicker,
   });
 
   final Locale locale;
@@ -382,6 +403,7 @@ class _HomePage extends StatefulWidget {
   final ValueChanged<Locale> onLocaleChanged;
   final SerialPortsLoader serialPortsLoader;
   final EspTransportFactory transportFactory;
+  final BinFilePicker binFilePicker;
 
   @override
   State<_HomePage> createState() => _HomePageState();
@@ -782,7 +804,7 @@ class _HomePageState extends State<_HomePage> {
     final images = await showDialog<List<_FlashImageSpec>>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const _WriteFlashDialog(),
+      builder: (context) => _WriteFlashDialog(pickFile: widget.binFilePicker),
     );
     if (images == null || images.isEmpty) {
       _log('Flash write cancelled');

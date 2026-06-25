@@ -29,3 +29,26 @@ body:
       label: Actual behavior
     validations:
       required: true
+  - type: dropdown
+    id: scenario_class
+    attributes:
+      label: Scenario class
+      description: Which validation path is affected?
+      options:
+        - good path
+        - bad path
+        - edge case
+    validations:
+      required: true
+  - type: dropdown
+    id: security_impact
+    attributes:
+      label: Security impact
+      options:
+        - none known
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true

@@ -20,6 +20,8 @@ enum EspErrorType {
   compressionError,
   imageParseError,
   unsupportedOperation,
+  /// The circuit breaker is open — requests are rejected immediately.
+  circuitBreakerOpen,
   unknown,
 }
 

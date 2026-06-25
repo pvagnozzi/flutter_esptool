@@ -5,6 +5,32 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
+import 'package:meta/meta.dart';
+
+/// Exception used by tests when command termination is intercepted.
+class CommandExit implements Exception {
+  const CommandExit(this.code);
+
+  final int code;
+}
+
+typedef CommandExitHandler = Never Function(int code);
+
+CommandExitHandler _exitHandler = exit;
+
+/// Allows tests to intercept command termination.
+@visibleForTesting
+void setExitHandlerForTesting(CommandExitHandler handler) {
+  _exitHandler = handler;
+}
+
+/// Restores default process exit behavior.
+@visibleForTesting
+void resetExitHandlerForTesting() {
+  _exitHandler = exit;
+}
+
+Never exitCommand(int code) => _exitHandler(code);
 
 String requirePort(Command<dynamic> command) {
   final results = command.argResults;
@@ -37,6 +63,20 @@ Future<void> connectOrExit(
     stderr.writeln(
       'Failed to connect: ${(result as Failure<void>).error.message}',
     );
-    exit(1);
+    exitCommand(1);
   }
 }
+
+
+/// Creates the default serial transport with retry and circuit-breaker
+/// resilience enabled.
+///
+/// * **Retry**: up to 3 attempts on transient errors (timeout, partial packet),
+///   with 100 ms → 200 ms exponential back-off.
+/// * **Circuit breaker**: opens after 5 consecutive transport failures and
+///   probes again after 30 s.
+EspTransportInterface createDefaultTransport() => EspResilientTransport(
+      EspTransport(),
+      retryPolicy: const EspRetryPolicy(maxAttempts: 3),
+      circuitBreaker: EspCircuitBreaker(failureThreshold: 5),
+    );

@@ -87,6 +87,8 @@ class EspTransport implements EspTransportInterface {
 
     await serial.open(serialConfig);
     await serial.resetBuffers();
+    _readBuffer
+        .clear(); // discard any stale in-memory data from a previous session
     _config = config;
   }
 
@@ -142,6 +144,15 @@ class EspTransport implements EspTransportInterface {
       }
     }
     await serial.flush();
+    // Flush the hardware receive buffer and the in-memory read buffer so
+    // that boot-loader messages emitted during the reset pulse do not
+    // contaminate the next SYNC attempt.
+    try {
+      await serial.resetBuffers();
+    } on SerialError {
+      // Best-effort: ignore if the driver does not support it.
+    }
+    _readBuffer.clear();
   }
 
   @override
@@ -190,7 +201,28 @@ class EspTransport implements EspTransportInterface {
         }
 
         final responseFrame = await _readFrame(remaining);
-        final response = _parseResponse(responseFrame.packet);
+
+        // Parse the frame, but treat malformed frames (too-short, invalid
+        // direction, unknown opcode) as noise: log them and keep reading
+        // rather than aborting the whole command.
+        EspResponse response;
+        try {
+          response = _parseResponse(responseFrame.packet);
+        } on EspError catch (parseError) {
+          logger?.call(
+            EspTransportLogEntry(
+              type: EspTransportLogType.transportError,
+              timestamp: DateTime.now(),
+              opcode: command.opcode,
+              rawPacket: Uint8List.fromList(responseFrame.packet),
+              rawFrame: Uint8List.fromList(responseFrame.rawFrame),
+              command: command,
+              message: 'Noise frame skipped: ${parseError.message}',
+            ),
+          );
+          continue;
+        }
+
         logger?.call(
           EspTransportLogEntry(
             type: EspTransportLogType.responseReceived,
@@ -268,7 +300,22 @@ class EspTransport implements EspTransportInterface {
     final deadline = DateTime.now().add(timeout);
 
     while (DateTime.now().isBefore(deadline)) {
-      final existing = _tryExtractFrame();
+      // Catch invalid-SLIP errors from _tryExtractFrame and treat them as
+      // noise: discard the bad frame and keep reading from the wire.
+      _FrameReadResult? existing;
+      try {
+        existing = _tryExtractFrame();
+      } on EspError catch (frameError) {
+        logger?.call(
+          EspTransportLogEntry(
+            type: EspTransportLogType.transportError,
+            timestamp: DateTime.now(),
+            message: 'Discarding invalid SLIP frame: ${frameError.message}',
+          ),
+        );
+        _readBuffer.clear();
+        continue;
+      }
       if (existing != null) {
         return existing;
       }
@@ -313,10 +360,18 @@ class EspTransport implements EspTransportInterface {
       return null;
     }
 
-    final start = current.indexOf(0xC0);
+    // Skip leading 0xC0 flush bytes that some ROM/stub implementations emit
+    // before each frame.  Standard SLIP uses a single 0xC0 as start delimiter
+    // but the ESP ROM may prepend an extra 0xC0 as a buffer-flush indicator.
+    // We advance `start` past any consecutive 0xC0 bytes so that we treat the
+    // LAST of the cluster as the real opening delimiter.
+    var start = current.indexOf(0xC0);
     if (start < 0) {
       _readBuffer.clear();
       return null;
+    }
+    while (start + 1 < current.length && current[start + 1] == 0xC0) {
+      start++;
     }
 
     for (var index = start + 1; index < current.length; index++) {
@@ -338,7 +393,10 @@ class EspTransport implements EspTransportInterface {
         );
       }
       if (frame.isEmpty) {
-        return null;
+        // Empty frame (bare 0xC0 pair): skip it and re-scan the remaining
+        // buffer in the same call rather than returning null and waiting for
+        // a serial-read round-trip.
+        return _tryExtractFrame();
       }
       return _FrameReadResult(
         rawFrame: rawFrame,

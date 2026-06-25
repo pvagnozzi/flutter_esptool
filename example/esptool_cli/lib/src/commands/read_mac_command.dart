@@ -9,7 +9,8 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class ReadMacCommand extends Command<void> {
-  ReadMacCommand() {
+  ReadMacCommand({EspTransportInterface Function()? transportFactory})
+    : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',
@@ -26,11 +27,13 @@ class ReadMacCommand extends Command<void> {
       );
   }
 
+  final EspTransportInterface Function() _transportFactory;
+
   @override
   String get name => 'read_mac';
 
   @override
-  String get description => 'Read MAC address';
+  String get description => 'Read WiFi and BT MAC addresses';
 
   @override
   FutureOr<void> run() async {
@@ -47,7 +50,7 @@ class ReadMacCommand extends Command<void> {
       syncRetries: 16,
     );
 
-    final transport = EspTransport();
+    final transport = _transportFactory();
 
     try {
       final connection = ConnectionService(transport);
@@ -58,18 +61,54 @@ class ReadMacCommand extends Command<void> {
 
       if (detectResult.isFailure) {
         stderr.writeln(
-          'Failed to read MAC: ${(detectResult as Failure<EspChipInfo>).error.message}',
+          'Failed to read MAC: '
+          '${(detectResult as Failure<EspChipInfo>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       final chipInfo = (detectResult as Success<EspChipInfo>).value;
-      stdout.writeln('MAC Address: ${chipInfo.macAddress}');
+      stdout.writeln('WiFi MAC Address: ${chipInfo.macAddress}');
+
+      // BT MAC = WiFi MAC + 2 (applies to ESP32 family chips).
+      // ESP8266 has no Bluetooth; skip for unknown family too.
+      final btMac = _computeBtMac(chipInfo);
+      if (btMac != null) {
+        stdout.writeln('BT   MAC Address: $btMac');
+      }
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }
+  }
+
+  /// Returns the Bluetooth MAC for ESP32-family chips (WiFi MAC + 2),
+  /// or null when BT is not applicable (ESP8266, unknown).
+  static String? _computeBtMac(EspChipInfo chipInfo) {
+    const btFamilies = {
+      ChipFamily.esp32,
+      ChipFamily.esp32s2,
+      ChipFamily.esp32s3,
+      ChipFamily.esp32c3,
+    };
+    if (!btFamilies.contains(chipInfo.family)) {
+      return null;
+    }
+
+    final parts = chipInfo.macAddress.split(':');
+    if (parts.length != 6) {
+      return null;
+    }
+
+    // Treat the MAC as a 48-bit integer, add 2, split back to bytes.
+    var mac48 = parts.fold<int>(0, (acc, hex) {
+      return (acc << 8) | int.parse(hex, radix: 16);
+    });
+    mac48 = (mac48 + 2) & 0xFFFFFFFFFFFF;
+
+    final btBytes = List.generate(6, (i) => (mac48 >> (8 * (5 - i))) & 0xFF);
+    return btBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
   }
 }

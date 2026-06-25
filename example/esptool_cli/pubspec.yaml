@@ -12,6 +12,7 @@ dependencies:
     path: ../../
   args: ^2.4.0
 
+  meta: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -13,6 +13,13 @@
 - Open PRs from `feature/*` to `develop`
 - Promote release candidates from `develop` to `main`
 - Merge hotfixes into both `main` and `develop`
+- PR validation gates must pass (`analyze`, `unit`, `integration`, `e2e`) before merge.
+- Owner-authored PRs to `main` can be auto-approved/auto-merged by workflow after successful validation.
+
+## Branch protection and rulesets
+
+- `main`, `develop`, and transitional `dev` are intended to be protected with GitHub branch protections/rulesets.
+- On plans where branch protection APIs are unavailable, keep automation gates active in CI and enforce merge checks through workflow-required status checks.
 
 ## Version Semantics
 

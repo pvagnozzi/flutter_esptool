@@ -9,7 +9,8 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class WriteFlashCommand extends Command<void> {
-  WriteFlashCommand() {
+  WriteFlashCommand({EspTransportInterface Function()? transportFactory})
+    : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',
@@ -27,6 +28,8 @@ class WriteFlashCommand extends Command<void> {
       ..addOption('baud', abbr: 'b', defaultsTo: '115200', help: 'Baud rate')
       ..addFlag('verify', defaultsTo: true, help: 'Verify written data');
   }
+
+  final EspTransportInterface Function() _transportFactory;
 
   @override
   String get name => 'write_flash';
@@ -48,13 +51,13 @@ class WriteFlashCommand extends Command<void> {
 
     if (filename == null) {
       stderr.writeln('Error: --filename is required');
-      exit(1);
+      exitCommand(1);
     }
 
     final file = File(filename);
     if (!await file.exists()) {
       stderr.writeln('Error: File not found: $filename');
-      exit(1);
+      exitCommand(1);
     }
 
     final data = await file.readAsBytes();
@@ -65,11 +68,16 @@ class WriteFlashCommand extends Command<void> {
     final config = EspConfig(
       portName: port,
       initialBaudRate: baud,
-      timeout: const Duration(seconds: 5),
+      // Use a longer timeout: FLASH_BEGIN triggers a flash erase which can
+      // take up to ~2s per sector on slow flash chips.
+      timeout: const Duration(seconds: 30),
       syncRetries: 16,
     );
-    final transport = EspTransport();
-    final flash = FlashService(transport: transport);
+    final transport = _transportFactory();
+    // ROM bootloader (no stub) uses FLASH_DATA blocks of 0x100 bytes (256).
+    // Using larger values causes FLASH_BEGIN to fail on ESP32 ROM.
+    const romBlockSize = 0x100;
+    final flash = FlashService(transport: transport, blockSize: romBlockSize);
 
     try {
       final connection = ConnectionService(transport);
@@ -83,13 +91,13 @@ class WriteFlashCommand extends Command<void> {
         stderr.writeln(
           'Failed to write: ${(result as Failure<void>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       stdout.writeln('Write complete!');
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }

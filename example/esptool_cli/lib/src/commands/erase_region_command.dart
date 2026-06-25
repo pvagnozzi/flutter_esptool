@@ -9,7 +9,9 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class EraseRegionCommand extends Command<void> {
-  EraseRegionCommand() {
+  EraseRegionCommand({
+    EspTransportInterface Function()? transportFactory,
+  }) : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',
@@ -21,6 +23,8 @@ class EraseRegionCommand extends Command<void> {
       ..addOption('length', abbr: 'l', mandatory: true, help: 'Length in bytes')
       ..addOption('baud', abbr: 'b', defaultsTo: '115200', help: 'Baud rate');
   }
+
+  final EspTransportInterface Function() _transportFactory;
 
   @override
   String get name => 'erase_region';
@@ -52,7 +56,7 @@ class EraseRegionCommand extends Command<void> {
       timeout: const Duration(seconds: 10),
       syncRetries: 16,
     );
-    final transport = EspTransport();
+    final transport = _transportFactory();
     final flash = FlashService(transport: transport);
 
     try {
@@ -64,13 +68,13 @@ class EraseRegionCommand extends Command<void> {
         stderr.writeln(
           'Failed to erase region: ${(result as Failure<void>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       stdout.writeln('Erase region complete!');
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }

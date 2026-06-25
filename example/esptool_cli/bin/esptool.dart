@@ -10,6 +10,7 @@ import 'package:esptool_cli/src/commands/erase_region_command.dart';
 import 'package:esptool_cli/src/commands/flash_id_command.dart';
 import 'package:esptool_cli/src/commands/read_flash_command.dart';
 import 'package:esptool_cli/src/commands/read_mac_command.dart';
+import 'package:esptool_cli/src/commands/read_partitions_command.dart';
 import 'package:esptool_cli/src/commands/version_command.dart';
 import 'package:esptool_cli/src/commands/write_flash_command.dart';
 
@@ -24,6 +25,7 @@ Future<void> main(List<String> arguments) async {
         ..addCommand(ReadMacCommand())
         ..addCommand(FlashIdCommand())
         ..addCommand(ReadFlashCommand())
+        ..addCommand(ReadPartitionsCommand())
         ..addCommand(WriteFlashCommand())
         ..addCommand(EraseFlashCommand())
         ..addCommand(EraseRegionCommand());

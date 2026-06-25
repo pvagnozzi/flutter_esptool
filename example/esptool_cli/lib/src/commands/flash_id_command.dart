@@ -9,7 +9,9 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class FlashIdCommand extends Command<void> {
-  FlashIdCommand() {
+  FlashIdCommand({
+    EspTransportInterface Function()? transportFactory,
+  }) : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',
@@ -25,6 +27,8 @@ class FlashIdCommand extends Command<void> {
         help: 'Timeout in seconds',
       );
   }
+
+  final EspTransportInterface Function() _transportFactory;
 
   @override
   String get name => 'flash_id';
@@ -47,7 +51,7 @@ class FlashIdCommand extends Command<void> {
       syncRetries: 16,
     );
 
-    final transport = EspTransport();
+    final transport = _transportFactory();
     final info = InfoService(transport: transport);
 
     try {
@@ -59,7 +63,7 @@ class FlashIdCommand extends Command<void> {
         stderr.writeln(
           'Failed to read flash ID: ${(result as Failure<EspFlashInfo>).error.message}',
         );
-        exit(1);
+        exitCommand(1);
       }
 
       final flashInfo = (result as Success<EspFlashInfo>).value;
@@ -87,7 +91,7 @@ class FlashIdCommand extends Command<void> {
       }
     } catch (e) {
       stderr.writeln('Error: $e');
-      exit(1);
+      exitCommand(1);
     } finally {
       await transport.close();
     }

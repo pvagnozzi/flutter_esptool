@@ -11,7 +11,7 @@ import 'package:flutter_esptool/flutter_esptool.dart';
 class ChipIdCommand extends Command<void> {
   ChipIdCommand({
     EspTransportInterface Function()? transportFactory,
-  }) : _transportFactory = transportFactory ?? EspTransport.new {
+  }) : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',

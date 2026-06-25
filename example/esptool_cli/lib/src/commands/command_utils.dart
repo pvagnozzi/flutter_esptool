@@ -66,3 +66,17 @@ Future<void> connectOrExit(
     exitCommand(1);
   }
 }
+
+
+/// Creates the default serial transport with retry and circuit-breaker
+/// resilience enabled.
+///
+/// * **Retry**: up to 3 attempts on transient errors (timeout, partial packet),
+///   with 100 ms → 200 ms exponential back-off.
+/// * **Circuit breaker**: opens after 5 consecutive transport failures and
+///   probes again after 30 s.
+EspTransportInterface createDefaultTransport() => EspResilientTransport(
+      EspTransport(),
+      retryPolicy: const EspRetryPolicy(maxAttempts: 3),
+      circuitBreaker: EspCircuitBreaker(failureThreshold: 5),
+    );

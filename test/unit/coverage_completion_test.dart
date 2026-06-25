@@ -256,8 +256,9 @@ void main() {
       final rejectParams = await FlashService(
         transport: _CommandTransport(failOpcode: EspCommandOpcode.spiSetParams),
       ).readFlash(const FlashReadParameters(offset: 0, size: 1));
-      expect((rejectParams as Failure<Uint8List>).error.type,
-          EspErrorType.flashReadFailed);
+      // spiSetParams failure is now non-fatal: ROM-only connections fall back
+      // gracefully, so readFlash should still succeed.
+      expect(rejectParams, isA<Success<Uint8List>>());
 
       final rejectRead = await FlashService(
         transport:
@@ -496,7 +497,11 @@ void main() {
           isTrue);
     });
 
-    test('transport rejects malformed response packets', () async {
+    test('transport skips malformed response packets as noise and times out',
+        () async {
+      // Malformed frames are now treated as noise (logged and skipped) rather
+      // than causing an immediate invalidResponse error.  A command that only
+      // ever receives malformed frames should eventually time out.
       for (final frame in <Uint8List>[
         SlipCodec.encode(Uint8List.fromList(<int>[1, 2, 3])),
         SlipCodec.encode(Uint8List.fromList(
@@ -507,14 +512,16 @@ void main() {
             <int>[1, EspCommandOpcode.sync.value, 0, 0, 0, 0, 0, 0, 0])),
       ]) {
         final transport = EspTransport(
+          // Short timeout so the test does not wait seconds per frame.
           serial: _Serial(responses: <Uint8List>[frame]),
           logger: (_) {},
         );
-        await transport.open(const EspConfig(portName: 'COM1'));
+        await transport.open(const EspConfig(
+            portName: 'COM1', timeout: Duration(milliseconds: 50)));
         await expectLater(
             transport.sendCommand(EspCommand(opcode: EspCommandOpcode.sync)),
-            throwsA(isA<EspError>().having(
-                (error) => error.type, 'type', EspErrorType.invalidResponse)));
+            throwsA(isA<EspError>()
+                .having((error) => error.type, 'type', EspErrorType.timeout)));
       }
     });
 

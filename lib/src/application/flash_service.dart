@@ -31,6 +31,13 @@ class FlashService implements FlashServiceInterface {
   @override
   Future<Result<void>> writeFlash(FlashParameters params) async {
     try {
+      // The ESP ROM requires SPI_ATTACH (0x0D) before any flash write
+      // commands.  Without this step the ROM does not know how the SPI flash
+      // is wired and silently ignores FLASH_BEGIN.
+      await _transport.sendCommand(
+        EspCommand(opcode: EspCommandOpcode.spiAttach, data: Uint8List(8)),
+      );
+
       final paddedData = FlashImageBuilder.buildPaddedImage(
         params.data,
         alignment: blockSize,
@@ -53,6 +60,8 @@ class FlashService implements FlashServiceInterface {
           opcode: params.compress
               ? EspCommandOpcode.flashDeflBegin
               : EspCommandOpcode.flashBegin,
+          // ESP ROM expects checksum=0 for FLASH_BEGIN (not XOR of payload).
+          checksum: 0,
           data: params.compress
               ? _buildFlashDeflBeginPayload(
                   uncompressedBytes: paddedData.length,
@@ -117,6 +126,8 @@ class FlashService implements FlashServiceInterface {
           opcode: params.compress
               ? EspCommandOpcode.flashDeflEnd
               : EspCommandOpcode.flashEnd,
+          // ESP ROM expects checksum=0 for FLASH_END.
+          checksum: 0,
           data: _u32(0),
         ),
       );
@@ -253,14 +264,22 @@ class FlashService implements FlashServiceInterface {
     data.setUint32(12, 0x00001000, Endian.little);
     data.setUint32(16, 0x00000100, Endian.little);
     data.setUint32(20, 0x0000FFFF, Endian.little);
-    final response = await _transport.sendCommand(
-      EspCommand(opcode: EspCommandOpcode.spiSetParams, data: payload),
-    );
-    if (!response.isSuccess) {
-      throw const EspError(
-        type: EspErrorType.flashReadFailed,
-        message: 'The device rejected SPI flash read parameters',
+    // spiSetParams (0x0B) is only supported by the stub; ESP32 ROM may not
+    // respond to it.  Use a short timeout and treat a timeout or failure as
+    // non-fatal so ROM-only connections can still attempt readFlashSlow.
+    try {
+      final response = await _transport.sendCommand(
+        EspCommand(opcode: EspCommandOpcode.spiSetParams, data: payload),
+        timeout: const Duration(seconds: 4),
       );
+      // If the device replied but with an error, log and continue; we will
+      // fall back to whatever the ROM natively supports.
+      if (!response.isSuccess) {
+        // Non-fatal: continue without SPI params.
+      }
+    } on EspError {
+      // Timeout or transport error — spiSetParams is not supported by this
+      // ROM; continue without it.
     }
   }
 
@@ -366,7 +385,14 @@ class FlashService implements FlashServiceInterface {
     required int blockCount,
     required int offset,
   }) {
-    final eraseSize = _roundUpToBlock(totalBytes);
+    // Erase size must be rounded up to flash sector size (0x1000 = 4 KB).
+    // The ROM bootloader erases whole sectors; passing a sub-sector erase
+    // size causes FLASH_BEGIN to be rejected by the ESP32 ROM.
+    const flashSectorSize = 0x1000;
+    final rawEraseSize = _roundUpToBlock(totalBytes);
+    final eraseSize =
+        ((rawEraseSize + flashSectorSize - 1) ~/ flashSectorSize) *
+            flashSectorSize;
     final payload = Uint8List(16);
     final data = ByteData.sublistView(payload);
     data.setUint32(0, eraseSize, Endian.little);

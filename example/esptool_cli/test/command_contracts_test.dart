@@ -12,11 +12,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('command utils', () {
-    test('parseFlexibleInt parses decimal, hex, and defaults on invalid input', () {
-      expect(parseFlexibleInt('42', defaultValue: -1), 42);
-      expect(parseFlexibleInt(' 0x1f ', defaultValue: -1), 31);
-      expect(parseFlexibleInt('bad-value', defaultValue: 77), 77);
-    });
+    test(
+      'parseFlexibleInt parses decimal, hex, and defaults on invalid input',
+      () {
+        expect(parseFlexibleInt('42', defaultValue: -1), 42);
+        expect(parseFlexibleInt(' 0x1f ', defaultValue: -1), 31);
+        expect(parseFlexibleInt('bad-value', defaultValue: 77), 77);
+      },
+    );
 
     test('requirePort trims parsed port values', () async {
       final command = _CapturePortCommand();
@@ -61,7 +64,7 @@ void main() {
       expect(ChipIdCommand().description, 'Read chip ID and MAC address');
 
       expect(ReadMacCommand().name, 'read_mac');
-      expect(ReadMacCommand().description, 'Read MAC address');
+      expect(ReadMacCommand().description, 'Read WiFi and BT MAC addresses');
 
       expect(FlashIdCommand().name, 'flash_id');
       expect(FlashIdCommand().description, 'Read SPI flash ID');

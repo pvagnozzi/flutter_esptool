@@ -170,19 +170,24 @@ void main() {
       expect(response.value, 0x55AA);
     });
 
-    test('sendCommand throws invalidResponse for invalid SLIP escape', () async {
-      await transport.open(const EspConfig(portName: 'COM5'));
+    test('sendCommand times out when only invalid SLIP escapes arrive',
+        () async {
+      // Open with a short timeout so the test does not wait seconds.
+      await transport.open(const EspConfig(
+          portName: 'COM5', timeout: Duration(milliseconds: 50)));
       when(() => serial.read(any(), timeout: any(named: 'timeout'))).thenAnswer(
         (_) async => Uint8List.fromList(<int>[0xC0, 0xDB, 0xAA, 0xC0]),
       );
 
-      expect(
-        () => transport.sendCommand(EspCommand(opcode: EspCommandOpcode.sync)),
+      // Invalid SLIP frames are now treated as noise (logged and skipped).
+      // The command eventually times out because no valid matching frame arrives.
+      await expectLater(
+        transport.sendCommand(EspCommand(opcode: EspCommandOpcode.sync)),
         throwsA(
           isA<EspError>().having(
             (error) => error.type,
             'type',
-            EspErrorType.invalidResponse,
+            anyOf(EspErrorType.timeout, EspErrorType.partialPacket),
           ),
         ),
       );

@@ -1,102 +1,225 @@
 # Copilot Instructions for `flutter_esptool`
 
-## Build, test, and lint
+## Project Context
 
-Run commands from the repository root (`flutter_esptool`):
+`flutter_esptool` is a Flutter/Dart package that implements the ESP32/ESP8266
+serial bootloader protocol. It enables chip detection, flash writing, and
+firmware operations over serial without requiring Python or esptool.py.
+
+**Architecture layers** (under `lib/src/`):
+
+| Layer | Path | Responsibility |
+|---|---|---|
+| Domain | `domain/` | Interfaces, core types, error types |
+| Application | `application/` | Orchestration services |
+| Infrastructure | `infrastructure/` | Binary, image, partition, compression |
+| Transport | `transport/` | ESP wire protocol + SLIP framing |
+
+**Key patterns**:
+
+- `EspResult<T>` (`Success<T>` / `Failure`) — every fallible operation
+  returns a typed result, never throws.
+- `EspResilientTransport` — wraps `EspTransport` with retry logic and
+  circuit-breaker semantics for unstable serial connections.
+- `EspTransportInterface` — dependency-injection boundary used in tests to
+  inject scripted/mocked transports (no physical hardware required).
+- `EspErrorType` — typed error enum; all failures map to a specific category
+  (e.g. `connectionFailed`, `flashWriteError`, `stubNotAvailable`).
+
+**Public API entry point**: `lib/flutter_esptool.dart` (barrel file).
+
+---
+
+## Code Review Guidelines
+
+When reviewing a PR, Copilot must check all of the following:
+
+### 1. Null Safety
+
+- No `late` fields without guaranteed initialisation before first access.
+- No `!` (bang operator) on nullable values unless provably non-null at that
+  site; prefer `?.` / null-aware operators or early `return Failure(...)`.
+
+### 2. Async / Await
+
+- Every `Future<T>` call site must be `await`-ed or explicitly handled.
+- No fire-and-forget `unawaited()` unless wrapped in error-logging callback.
+- Avoid `async` functions that never use `await` (use `Future.value` instead).
+
+### 3. EspResult Pattern
+
+- Every method that can fail **must** return `EspResult<T>` (alias for
+  `Result<T>` from the domain layer).
+- Do not throw across service/application layer boundaries; catch at the
+  transport boundary and convert with `Failure(EspError(...))`.
+- `switch`/`when` on result type must be exhaustive — no silent fallbacks.
+
+### 4. Resource Cleanup
+
+- Serial port (or any `Closeable`) **must** be closed in a `finally` block.
+- Every `StreamSubscription` created in a service must be cancelled in
+  `dispose()` or an equivalent teardown method.
+- `StreamController` instances must be closed when no longer needed.
+
+### 5. Test Coverage
+
+- Every **public** method added or modified must have at least one unit test.
+- New failure paths must have a corresponding bad-path test.
+- Edge cases (empty payload, max-size payload, partial frames) must be covered
+  if the change touches transport or parser code.
+
+### 6. Dartdoc
+
+- Every public class, method, property, and typedef must have `///` comments.
+- Include `@param`, `@returns`, and `@throws` (or note "never throws") for
+  complex signatures.
+- Avoid redundant re-stating of the function name; describe *why*, not *what*.
+
+### 7. Error Types
+
+- Use `EspErrorType` values instead of `Exception` or `Error` subclasses.
+- Do not wrap `EspError` inside another `EspError`; flatten the chain.
+- String messages in `EspError` should be human-readable for end-user display.
+
+### 8. Platform Compatibility
+
+- Verify that added code compiles and behaves correctly on Linux, macOS, and
+  Windows (path separators, line endings, serial device naming).
+- Avoid `dart:io` `Platform.isXxx` branches in library code; prefer the
+  `platform` abstraction from the domain layer.
+- No hard-coded Unix paths (e.g. `/dev/ttyUSB0`) in non-example library code.
+
+---
+
+## Commit Message Convention
+
+Use **Conventional Commits** (`https://www.conventionalcommits.org`):
+
+```
+<type>(<scope>): <short summary>
+
+[optional body]
+
+[optional footers]
+```
+
+**Types**: `feat` | `fix` | `docs` | `style` | `refactor` | `test` |
+`chore` | `ci`
+
+**Scopes** (optional): `transport` | `flash` | `chip` | `stub` | `models` |
+`infra` | `ci` | `deps` | `example`
+
+Examples:
+
+```
+feat(transport): add EspResilientTransport circuit-breaker
+fix(flash): correct MD5 verification byte order
+test(transport): add partial-frame accumulation coverage
+chore(deps): bump mocktail to 1.0.4
+ci: split e2e job from integration job
+```
+
+Breaking changes must include a `BREAKING CHANGE:` footer or a `!` suffix:
+
+```
+feat(models)!: rename EspStatus to EspConnectionStatus
+```
+
+---
+
+## Test Structure
+
+```
+test/
+  unit/           # Pure logic, no I/O — fast, fully mocked
+    transport/    # SLIP codec, packet encoding/decoding
+    models/       # DTO serialisation/parsing
+    resilience/   # Circuit-breaker, retry policy
+    infrastructure/ # Image builder, zlib, partition parser
+  integration/    # Multiple components wired together
+    transport_mock_test.dart   # Full protocol flow via ScriptedTransport
+    info_service_protocol_test.dart
+  e2e/            # Multi-step scripted flows (no real hardware required)
+    flash_flow_e2e_test.dart   # begin/data/end/MD5 command sequence
+```
+
+**Rules**:
+
+- `test/unit/` — inject mocks via `mocktail`; no serial port, no I/O.
+- `test/integration/` — use `ScriptedTransport` (opcode queue) to validate
+  service-to-transport interaction.
+- `test/e2e/` — use `ScriptedTransport` for deterministic multi-step flows;
+  mark hardware-dependent tests with `@Skip('requires hardware')`.
+- No wall-clock dependency (`Future.delayed`); use fake async where needed.
+- Prefer reusable builders/fixtures over duplicated inline setup.
+
+**Commands**:
 
 ```bash
 flutter pub get
 flutter analyze
 flutter test
-flutter test test\unit
-flutter test test\integration
-flutter test test\e2e
+flutter test test/unit
+flutter test test/integration
+flutter test test/e2e
+flutter test test/unit/transport/slip_codec_test.dart
 ```
 
-Run one test scope at a time:
+---
 
-```bash
-flutter test test\unit\transport\slip_codec_test.dart
-flutter test test\integration\transport_mock_test.dart
-flutter test test\e2e\flash_flow_e2e_test.dart
-```
+## PR Review Checklist
 
-Run a single test by name:
+Copilot must verify all 10 items on every PR:
 
-```bash
-flutter test test\unit\transport\slip_codec_test.dart --plain-name "round-trips a payload through encode and decode"
-```
+1. **[ ] Null safety** — no unsafe `!` or uninitialised `late`.
+2. **[ ] Async hygiene** — every `Future` is `await`-ed or handled.
+3. **[ ] EspResult usage** — fallible methods return `EspResult<T>`.
+4. **[ ] Resource cleanup** — ports and subscriptions released properly.
+5. **[ ] Test coverage** — new public methods have at least one test.
+6. **[ ] Dartdoc** — public APIs have `///` documentation.
+7. **[ ] Error types** — `EspErrorType` used, no raw `Exception`.
+8. **[ ] Platform compat** — no platform-specific paths or assumptions.
+9. **[ ] CHANGELOG** — entry added if change is user-visible.
+10. **[ ] Breaking change** — `BREAKING CHANGE` noted in commit and PR.
 
-Run focused subsets while iterating on protocol work:
+---
 
-```bash
-flutter test test\unit\transport
-flutter test test\unit\infrastructure
-```
+## Code Style
 
-## High-level architecture
+| Rule | Value |
+|---|---|
+| Formatter | `dart format --line-length 80` |
+| Quote style | `prefer_single_quotes` |
+| Import style | `always_use_package_imports` |
+| Null safety | strict (`strict-casts`, `strict-inference`, `strict-raw-types`) |
+| Linter | `package:flutter_lints` + project `analysis_options.yaml` |
 
-- Public API is the barrel file `lib/flutter_esptool.dart`, which re-exports services, domain interfaces, transport, infrastructure parsers/builders, and models.
-- The code is layered under `lib/src/`:
-  - `application/`: orchestration services (`ConnectionService`, `ChipDetectionService`, `FlashService`, `InfoService`, `StubLoaderService`)
-  - `domain/`: stable interfaces and core domain types
-  - `transport/`: ESP wire protocol and serial transport (`EspTransport`, `SlipCodec`)
-  - `infrastructure/`: binary/image/partition/compression helpers
-  - `models/`: protocol/config/error/result/progress DTOs
-- Typical runtime call path is:
-  - `ConnectionService.connect(EspConfig)` -> transport open/reset/sync retries
-  - `ChipDetectionService.detect()` -> `readReg` on chip magic + MAC registers
-  - `FlashService.writeFlash(FlashParameters)` -> begin/data/end (+ optional MD5)
-- `EspTransport` is the protocol boundary:
-  - builds command packets (`0x00`, opcode, little-endian fields, payload),
-  - wraps them in SLIP frames,
-  - reads/accumulates serial chunks until a complete frame exists,
-  - parses response packets into `EspResponse`.
-- Application services depend on `EspTransportInterface`, not concrete serial classes, so tests can inject mock/scripted transports (`test/integration/transport_mock_test.dart`, `test/e2e/flash_flow_e2e_test.dart`).
-- Flash writing flow in `FlashService` is: split image blocks (`FlashImageBuilder`) -> optional deflate (`ZlibHelper`) -> begin/data/end command sequence -> optional MD5 verification (`flashMd5` + local MD5).
-- `StubLoaderService` is intentionally a placeholder in this version (`stubNotAvailable`), so raw flash-read flows that require stub support are expected to fail with typed errors.
+**Protocol encoding**: always use `ByteData` with `Endian.little` for wire
+fields, register payloads, flash headers, and partition entries.
 
-## Key codebase conventions
+**File organisation**: one public class or mixin per file; private helpers may
+share the file with their primary class.
 
-- **Result-driven API:** service/parser APIs return `Result<T>` (`Success`/`Failure`) instead of throwing for expected operation outcomes.
-- **Error typing:** failures use `EspError` with a specific `EspErrorType`; map errors to the closest protocol/transport category.
-- **Transport exception boundary:** `EspTransport` may throw `EspError`; higher-level services catch and convert to `Failure(...)`.
-- **Protocol encoding:** use `ByteData` with `Endian.little` for all wire fields, register payloads, flash headers, and partition parsing.
-- **Imports and style:** use package imports (`always_use_package_imports`) and single quotes (`prefer_single_quotes`) per `analysis_options.yaml`.
-- **Strict analysis settings:** keep `strict-casts`, `strict-inference`, and `strict-raw-types` compatibility.
-- **Hardware-free tests:** tests should use mocks/fakes (`mocktail`, scripted transport/serial implementations), not real serial hardware.
-- **Protocol tests should assert bytes, not only booleans:** in transport tests, validate encoded packet contents and decoded response fields (see `test/integration/transport_mock_test.dart`).
-- **Use deterministic scripted command queues for flow tests:** e2e-style tests in this repo model command/response order by opcode queues (`ScriptedTransport`) to verify multi-step flashing logic.
-- **Partial frame behavior is first-class:** when changing transport/SLIP logic, keep coverage for split reads and frame accumulation semantics (`sendCommand accumulates partial packets`, `partial packet accumulation works across split reads`).
+---
 
-## Security and vulnerability management
+## Security and Vulnerability Management
 
-- Treat every dependency change as a security event: review changelogs and CVE advisories before merging.
-- Prefer fixed or bounded versions for security-sensitive tooling used in CI and release workflows.
-- For vulnerability triage, classify findings as:
-  - `critical/high`: block release and require remediation.
-  - `medium`: remediate before the next tagged release.
-  - `low`: document and track with owner + due date.
+- Every dependency change is a security event: review changelogs and CVE
+  advisories before merging.
+- Classify findings: `critical/high` block release; `medium` fix before next
+  tag; `low` document with owner + due date.
 - When touching transport, parser, compression, or file handling code:
-  - validate bounds and malformed payload behavior;
+  - validate bounds and malformed-payload behaviour;
   - add/adjust tests for bad-path and edge-path inputs;
-  - map failures to typed `EspErrorType` instead of silent fallback behavior.
+  - map failures to typed `EspErrorType` (no silent fallbacks).
+- Use trusted publishing (OIDC) for pub.dev; avoid long-lived secrets.
 
-## Test automation expectations (including UI)
+---
 
-- Any logic change should include or update:
-  - unit tests for pure logic and branch behavior;
-  - integration tests for service + transport interaction;
-  - e2e/scripted-flow tests for multi-step protocol workflows.
-- For `example/esptool_ui`, include widget tests for:
-  - good path (expected success UX),
-  - bad path (typed errors surfaced clearly),
-  - edge cases (empty input, retry states, long-running operations).
-- Keep tests deterministic: avoid wall-clock dependency and non-deterministic ordering.
-- Prefer reusable test fixtures/builders over duplicated inline setup.
+## PR / Release Automation
 
-## PR/release automation expectations
-
-- PR checks must include analyzer + unit/integration/e2e scopes.
-- Owner PR auto-approval/merge is allowed only after all PR validation jobs succeed.
-- Publish workflow should use trusted publishing (OIDC), not long-lived pub.dev secrets.
+- PR checks run: `analyze` → `unit` → `integration` → `e2e` (separate jobs).
+- Auto-merge is allowed only after all jobs succeed and only for owner PRs to
+  `main`.
+- Never bypass failing tests to publish.
+- Publish workflow is downstream from the `main` merge and uses OIDC.

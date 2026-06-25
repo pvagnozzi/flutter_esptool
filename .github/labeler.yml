@@ -1,0 +1,35 @@
+library:
+  - changed-files:
+      - any-glob-to-any-file: "lib/**"
+
+testing:
+  - changed-files:
+      - any-glob-to-any-file: "test/**"
+
+ci-cd:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: "doc/**"
+
+example:
+  - changed-files:
+      - any-glob-to-any-file: "example/**"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file: "docker/**"
+
+tooling:
+  - changed-files:
+      - any-glob-to-any-file: "scripts/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: "pubspec.yaml"
+
+changelog:
+  - changed-files:
+      - any-glob-to-any-file: "CHANGELOG.md"

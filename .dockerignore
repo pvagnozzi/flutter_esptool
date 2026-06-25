@@ -1,0 +1,9 @@
+.git
+.dart_tool
+build
+.pub-cache
+coverage/html
+reports
+example/*/build
+third_party/*/build
+*.log

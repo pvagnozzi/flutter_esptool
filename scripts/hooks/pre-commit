@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+echo "🔍 pre-commit: dart format check..."
+dart format --set-exit-if-changed lib/ test/ 2>&1 || {
+  echo "❌ Format errors. Run: dart format lib/ test/"
+  exit 1
+}
+echo "🔍 pre-commit: flutter analyze..."
+flutter analyze --no-pub 2>&1 || {
+  echo "❌ Analysis failed."
+  exit 1
+}
+echo "✅ pre-commit passed."

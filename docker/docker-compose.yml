@@ -1,0 +1,69 @@
+version: "3.8"
+
+# Shared image name used by all services
+x-image: &image flutter_esptool_analysis
+
+# Shared build config (only used by the 'analyze' service
+# to trigger an explicit build; all others reuse the image)
+x-build: &build
+  context: ..
+  dockerfile: docker/Dockerfile
+
+services:
+
+  # -----------------------------------------------------------
+  # analyze: run flutter static analysis
+  # -----------------------------------------------------------
+  analyze:
+    image: *image
+    build: *build
+    command: flutter analyze --no-pub
+    volumes:
+      - ..:/app
+
+  # -----------------------------------------------------------
+  # test: run unit + integration tests with coverage
+  # -----------------------------------------------------------
+  test:
+    image: *image
+    command: flutter test --coverage
+    volumes:
+      - ..:/app
+
+  # -----------------------------------------------------------
+  # coverage: generate HTML coverage report from lcov.info
+  # -----------------------------------------------------------
+  coverage:
+    image: *image
+    command: sh /app/docker/scripts/coverage-report.sh
+    volumes:
+      - ..:/app
+      - ./reports:/app/coverage/html
+
+  # -----------------------------------------------------------
+  # pana: run pub.dev package scoring tool
+  # -----------------------------------------------------------
+  pana:
+    image: *image
+    command: dart run pana --no-warning .
+    volumes:
+      - ..:/app
+
+  # -----------------------------------------------------------
+  # semgrep: static security / pattern analysis
+  # -----------------------------------------------------------
+  semgrep:
+    image: *image
+    command: semgrep scan --config=auto lib/ test/
+    volumes:
+      - ..:/app
+
+  # -----------------------------------------------------------
+  # full: run the complete analysis suite and save reports
+  # -----------------------------------------------------------
+  full:
+    image: *image
+    command: sh /app/docker/scripts/full-analysis.sh
+    volumes:
+      - ..:/app
+      - ./reports:/app/reports

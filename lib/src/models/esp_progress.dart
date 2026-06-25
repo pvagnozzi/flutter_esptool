@@ -3,14 +3,31 @@
 
 /// High-level flashing progress stages.
 enum EspProgressStage {
+  /// Opening the serial port.
   connecting,
+
+  /// Synchronising with the ROM bootloader.
   syncing,
+
+  /// Identifying the connected chip.
   detectingChip,
+
+  /// Loading the flasher stub into device RAM.
   loadingStub,
+
+  /// Erasing flash sectors.
   erasing,
+
+  /// Writing firmware blocks to flash.
   writing,
+
+  /// Reading bytes from flash.
   reading,
+
+  /// Verifying written data via MD5.
   verifying,
+
+  /// The operation completed successfully.
   done,
 }
 

@@ -11,10 +11,20 @@ import 'package:flutter_esptool/src/transport/slip_codec.dart';
 import 'package:platform_serial/platform_serial.dart';
 
 /// Log event type emitted by [EspTransport].
-enum EspTransportLogType { commandSent, responseReceived, transportError }
+enum EspTransportLogType {
+  /// A command was sent to the device.
+  commandSent,
+
+  /// A response was received from the device.
+  responseReceived,
+
+  /// A transport-level error or diagnostic event.
+  transportError,
+}
 
 /// Structured log entry emitted by [EspTransport].
 class EspTransportLogEntry {
+  /// Creates an [EspTransportLogEntry].
   const EspTransportLogEntry({
     required this.type,
     required this.timestamp,

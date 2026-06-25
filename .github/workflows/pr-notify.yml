@@ -1,0 +1,83 @@
+name: PR Notification
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - dev
+      - test
+      - stable
+      - main
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PR setup
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const issue_number = pr.number;
+
+            // 1. Assign PR to @pvagnozzi
+            await github.rest.issues.addAssignees({
+              owner,
+              repo,
+              issue_number,
+              assignees: ['pvagnozzi']
+            });
+
+            // 2. Add "needs-review" label if not present
+            const existing = pr.labels.map(l => l.name);
+            if (!existing.includes('needs-review')) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: ['needs-review']
+              });
+            }
+
+            // 3. Post welcome comment with checklist
+            const body = [
+              '## 👋 Thanks for opening this PR!',
+              '',
+              'Please make sure the following checks are complete:',
+              '',
+              '### Code Quality',
+              '- [ ] `flutter analyze` passes with no issues',
+              '- [ ] No new lint warnings introduced',
+              '',
+              '### Tests',
+              '- [ ] `flutter test test/unit` — all unit tests green',
+              '- [ ] `flutter test test/integration` — integration tests',
+              '- [ ] `flutter test test/e2e` — end-to-end tests',
+              '- [ ] Good path, bad path, and edge cases covered',
+              '',
+              '### Coverage',
+              '- [ ] Code coverage ≥ 70%',
+              '',
+              '### Documentation',
+              '- [ ] CHANGELOG.md updated (if needed)',
+              '- [ ] Public API docs updated (if needed)',
+              '',
+              '### Security',
+              '- [ ] Vulnerability / security impact triaged',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body
+            });

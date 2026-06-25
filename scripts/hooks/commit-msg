@@ -1,0 +1,12 @@
+#!/bin/sh
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+PATTERN="^(feat|fix|docs|style|refactor|test|chore|ci|build|perf|revert)(\(.+\))?: .{1,100}$"
+if ! echo "$MSG" | grep -qE "$PATTERN"; then
+  echo "❌ Commit message must follow Conventional Commits:"
+  echo "   type(scope): description"
+  echo "   Types: feat fix docs style refactor test chore ci build perf revert"
+  echo "   Got: $MSG"
+  exit 1
+fi
+echo "✅ Commit message OK."

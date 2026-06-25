@@ -9,9 +9,8 @@ import 'package:esptool_cli/src/commands/command_utils.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 
 class EraseFlashCommand extends Command<void> {
-  EraseFlashCommand({
-    EspTransportInterface Function()? transportFactory,
-  }) : _transportFactory = transportFactory ?? EspTransport.new {
+  EraseFlashCommand({EspTransportInterface Function()? transportFactory})
+    : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',

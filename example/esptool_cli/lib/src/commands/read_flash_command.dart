@@ -12,7 +12,7 @@ import 'package:flutter_esptool/flutter_esptool.dart';
 class ReadFlashCommand extends Command<void> {
   ReadFlashCommand({
     EspTransportInterface Function()? transportFactory,
-  }) : _transportFactory = transportFactory ?? EspTransport.new {
+  }) : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',

@@ -22,6 +22,12 @@ class PartitionTable {
   /// The second magic byte for a valid entry.
   static const int magic2 = 0x50;
 
+  /// Magic bytes of the MD5 checksum entry appended by esp-idf's
+  /// gen_esp32part.py.  This entry terminates the table; it is not a
+  /// partition entry and must be skipped rather than parsed.
+  static const int md5Magic1 = 0xEB;
+  static const int md5Magic2 = 0xEB;
+
   /// Parses a raw partition table buffer.
   static Result<List<PartitionEntry>> parse(Uint8List bytes) {
     try {
@@ -40,6 +46,10 @@ class PartitionTable {
             Uint8List.fromList(bytes.sublist(offset, offset + entrySize));
         if (chunk.every((byte) => byte == 0xFF)) {
           continue;
+        }
+        // MD5 checksum entry (0xEB 0xEB) marks end of partition entries.
+        if (chunk[0] == md5Magic1 && chunk[1] == md5Magic2) {
+          break;
         }
         if (chunk[0] != magic1 || chunk[1] != magic2) {
           return const Failure<List<PartitionEntry>>(

@@ -4,7 +4,6 @@ import 'package:esptool_ui/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_esptool/flutter_esptool.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platform_serial/platform_serial.dart';
 
 void main() {
   testWidgets(

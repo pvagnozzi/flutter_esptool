@@ -30,7 +30,14 @@ void main() {
 }
 
 EspTransportInterface _defaultTransportFactory(EspTransportLogger? logger) {
-  return EspTransport(logger: logger);
+  // Wrap the real transport with retry (3 attempts on transient errors) and a
+  // circuit breaker (opens after 5 consecutive failures, probes after 30 s)
+  // so transient serial glitches are recovered transparently in the UI.
+  return EspResilientTransport(
+    EspTransport(logger: logger),
+    retryPolicy: const EspRetryPolicy(maxAttempts: 3),
+    circuitBreaker: EspCircuitBreaker(failureThreshold: 5),
+  );
 }
 
 Future<List<SerialPortInfo>> _defaultSerialPortsLoader() {

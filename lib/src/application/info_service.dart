@@ -81,6 +81,159 @@ class InfoService {
     return result.map((chip) => chip.macAddress);
   }
 
+  /// Reads [size] bytes from flash at [offset] using direct SPI register
+  /// manipulation (like JEDEC-ID reading).  Works with the ROM bootloader
+  /// without requiring the esptool stub or the [spiSetParams] command.
+  ///
+  /// Reads in 32-byte chunks (256 bits per SPI transaction).  On chips that
+  /// report [ChipFamily.unknown] or ESP8266 this always returns an error.
+  Future<Result<Uint8List>> readFlashViaSpi(int offset, int size) async {
+    if (size <= 0) {
+      return const Failure<Uint8List>(
+        EspError(
+          type: EspErrorType.flashReadFailed,
+          message: 'Read size must be positive',
+        ),
+      );
+    }
+    try {
+      final chipResult = await _chipDetectionService.detect();
+      if (chipResult is Failure<EspChipInfo>) {
+        return Failure<Uint8List>((chipResult).error);
+      }
+      final family = (chipResult as Success<EspChipInfo>).value.family;
+      if (family == ChipFamily.esp8266) {
+        return const Failure<Uint8List>(
+          EspError(
+            type: EspErrorType.unsupportedOperation,
+            message: 'Direct SPI flash read is not supported on ESP8266',
+          ),
+        );
+      }
+      final registerMap = _registerMapForFamily(family);
+      if (registerMap == null) {
+        return const Failure<Uint8List>(
+          EspError(
+            type: EspErrorType.unsupportedOperation,
+            message: 'Unsupported chip family for direct SPI flash read',
+          ),
+        );
+      }
+      await _attachSpiFlashIfNeeded(family);
+
+      const chunkBytes = 32;
+      final output = BytesBuilder(copy: false);
+      var readSoFar = 0;
+      while (readSoFar < size) {
+        final chunkSize = (size - readSoFar).clamp(0, chunkBytes);
+        final chunkData = await _readSpiFlashChunk(
+          registerMap,
+          offset + readSoFar,
+          chunkSize,
+        );
+        output.add(chunkData);
+        readSoFar += chunkSize;
+      }
+      return Success<Uint8List>(output.toBytes());
+    } catch (error, stackTrace) {
+      return Failure<Uint8List>(
+        EspError(
+          type: EspErrorType.flashReadFailed,
+          message: error.toString(),
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
+
+  /// Reads up to 32 bytes from [flashAddress] via SPI register manipulation.
+  Future<Uint8List> _readSpiFlashChunk(
+    _SpiRegisterMap map,
+    int flashAddress,
+    int bytesToRead,
+  ) async {
+    if (bytesToRead <= 0 || bytesToRead > 32) {
+      throw const EspError(
+        type: EspErrorType.flashReadFailed,
+        message: 'SPI chunk read: bytesToRead must be 1..32',
+      );
+    }
+
+    const spiCmdUsr = 1 << 18;
+    const spiUsrCommand = 1 << 31;
+    const spiUsrAddr = 1 << 26;
+    const spiUsrMiso = 1 << 28;
+    const spiUsr2CommandLenShift = 28;
+    const spiUsrAddrLenShift = 26;
+    const spiflashRead = 0x03;
+
+    final spiCmdReg = map.base + 0x00;
+    final spiAddrReg = map.base + 0x04; // SPI_ADDR
+    final spiUsrReg = map.base + map.spiUsrOffset;
+    final spiUsr1Reg = map.base + map.spiUsr1Offset;
+    final spiUsr2Reg = map.base + map.spiUsr2Offset;
+    final spiW0Reg = map.base + map.spiW0Offset;
+
+    final readBits = bytesToRead * 8;
+
+    final oldUsr = await _readRegister(spiUsrReg);
+    final oldUsr2 = await _readRegister(spiUsr2Reg);
+    final oldUsr1 = await _readRegister(spiUsr1Reg);
+    try {
+      if (map.spiMisoDlenOffset != null) {
+        final spiMisoDlenReg = map.base + map.spiMisoDlenOffset!;
+        await _writeRegister(spiMisoDlenReg, readBits - 1);
+        if (map.spiMosiDlenOffset != null) {
+          final spiMosiDlenReg = map.base + map.spiMosiDlenOffset!;
+          await _writeRegister(spiMosiDlenReg, 0);
+        }
+      }
+
+      // addr_bitlen = 23 (24-bit address); set in USR1
+      const addrBitlen = 23;
+      final newUsr1 =
+          (oldUsr1 & 0x03FFFFFF) | (addrBitlen << spiUsrAddrLenShift);
+      await _writeRegister(spiUsr1Reg, newUsr1);
+
+      // USR: command phase + address phase + MISO phase
+      await _writeRegister(spiUsrReg, spiUsrCommand | spiUsrAddr | spiUsrMiso);
+
+      // USR2: 8-bit READ command (0x03)
+      await _writeRegister(
+          spiUsr2Reg, (7 << spiUsr2CommandLenShift) | spiflashRead);
+
+      // ADDR: flash address left-shifted by 8 (address in bits [31:8])
+      await _writeRegister(spiAddrReg, flashAddress << 8);
+
+      // Trigger the SPI transaction
+      await _writeRegister(spiCmdReg, spiCmdUsr);
+
+      // Poll until transaction completes
+      for (var i = 0; i < 16; i++) {
+        final cmdVal = await _readRegister(spiCmdReg);
+        if ((cmdVal & spiCmdUsr) == 0) {
+          // Read W registers — each is 4 bytes, little-endian
+          final wordCount = (bytesToRead + 3) ~/ 4;
+          final result = Uint8List(wordCount * 4);
+          final resultData = ByteData.sublistView(result);
+          for (var w = 0; w < wordCount; w++) {
+            final word = await _readRegister(spiW0Reg + w * 4);
+            resultData.setUint32(w * 4, word, Endian.little);
+          }
+          return result.sublist(0, bytesToRead);
+        }
+      }
+      throw const EspError(
+        type: EspErrorType.timeout,
+        message: 'SPI READ command did not complete in time',
+      );
+    } finally {
+      await _writeRegister(spiUsr1Reg, oldUsr1);
+      await _writeRegister(spiUsrReg, oldUsr);
+      await _writeRegister(spiUsr2Reg, oldUsr2);
+    }
+  }
+
   String? _manufacturerName(int manufacturerId) {
     return switch (manufacturerId) {
       0x1C => 'EON',

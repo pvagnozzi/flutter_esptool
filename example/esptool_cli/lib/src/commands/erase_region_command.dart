@@ -11,7 +11,7 @@ import 'package:flutter_esptool/flutter_esptool.dart';
 class EraseRegionCommand extends Command<void> {
   EraseRegionCommand({
     EspTransportInterface Function()? transportFactory,
-  }) : _transportFactory = transportFactory ?? EspTransport.new {
+  }) : _transportFactory = transportFactory ?? createDefaultTransport {
     argParser
       ..addOption(
         'port',

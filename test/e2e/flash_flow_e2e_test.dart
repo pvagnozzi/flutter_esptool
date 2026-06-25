@@ -209,7 +209,9 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       final payload = ByteData.sublistView(flashBeginCommand.data);
-      expect(payload.getUint32(0, Endian.little), 16);
+      // Erase size is rounded up to flash sector size (0x1000 = 4096 bytes)
+      // so that the ESP32 ROM FLASH_BEGIN command accepts it.
+      expect(payload.getUint32(0, Endian.little), 0x1000);
       expect(payload.getUint32(4, Endian.little), 2);
       expect(payload.getUint32(8, Endian.little), 8);
       expect(payload.getUint32(12, Endian.little), 0x1000);

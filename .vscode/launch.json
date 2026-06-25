@@ -2,10 +2,28 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "esptool_ui • Windows",
+      "name": "esptool_ui • Windows (Debug)",
       "request": "launch",
       "type": "dart",
       "flutterMode": "debug",
+      "deviceId": "windows",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • Windows (Profile)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "deviceId": "windows",
+      "cwd": "example/esptool_ui",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_ui • Windows (Release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
       "deviceId": "windows",
       "cwd": "example/esptool_ui",
       "program": "lib/main.dart"
@@ -56,10 +74,31 @@
       "program": "lib/main.dart"
     },
     {
-      "name": "esptool_cli app • Windows",
+      "name": "esptool_ui • HW tests – COM22 (non-destructive)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "windows",
+      "cwd": "example/esptool_ui",
+      "program": "integration_test/esp32_hardware_test.dart",
+      "args": [
+        "--dart-define=RUN_ESP_HARDWARE_TESTS=true",
+        "--dart-define=ESP_PORT=COM22"
+      ]
+    },
+    {
+      "name": "esptool_cli app • Windows (Debug)",
       "request": "launch",
       "type": "dart",
       "flutterMode": "debug",
+      "deviceId": "windows",
+      "cwd": "example/esptool_cli",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "esptool_cli app • Windows (Release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
       "deviceId": "windows",
       "cwd": "example/esptool_cli",
       "program": "lib/main.dart"
@@ -110,6 +149,31 @@
       "program": "lib/main.dart"
     },
     {
+      "name": "esptool_cli • HW tests – COM22 (non-destructive)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "windows",
+      "cwd": "example/esptool_cli",
+      "program": "integration_test/hardware_e2e_test.dart",
+      "args": [
+        "--dart-define=RUN_ESP_HARDWARE_TESTS=true",
+        "--dart-define=ESP_PORT=COM22"
+      ]
+    },
+    {
+      "name": "esptool_cli • HW tests – COM22 (+ destructive flash/erase)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "windows",
+      "cwd": "example/esptool_cli",
+      "program": "integration_test/hardware_e2e_test.dart",
+      "args": [
+        "--dart-define=RUN_ESP_HARDWARE_TESTS=true",
+        "--dart-define=RUN_ESP_DESTRUCTIVE_HARDWARE_TESTS=true",
+        "--dart-define=ESP_PORT=COM22"
+      ]
+    },
+    {
       "name": "esptool_cli • Dart CLI (help)",
       "request": "launch",
       "type": "dart",
@@ -125,6 +189,55 @@
       "cwd": "example/esptool_cli",
       "program": "bin/esptool.dart",
       "args": ["chip_id", "--port", "COM22", "--timeout", "15"],
+      "toolArgs": ["--enable-asserts"]
+    },
+    {
+      "name": "esptool_cli • Dart CLI (COM22 read_mac)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "example/esptool_cli",
+      "program": "bin/esptool.dart",
+      "args": ["read_mac", "--port", "COM22", "--timeout", "15"],
+      "toolArgs": ["--enable-asserts"]
+    },
+    {
+      "name": "esptool_cli • Dart CLI (COM22 flash_id)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "example/esptool_cli",
+      "program": "bin/esptool.dart",
+      "args": ["flash_id", "--port", "COM22", "--timeout", "15"],
+      "toolArgs": ["--enable-asserts"]
+    },
+    {
+      "name": "esptool_cli • Dart CLI (COM22 erase_region 0x100000 4096)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "example/esptool_cli",
+      "program": "bin/esptool.dart",
+      "args": [
+        "erase_region",
+        "--port", "COM22",
+        "--offset", "0x100000",
+        "--size", "4096",
+        "--timeout", "30"
+      ],
+      "toolArgs": ["--enable-asserts"]
+    },
+    {
+      "name": "esptool_cli • Dart CLI (COM22 read_flash 0x0 4096 → dump.bin)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "example/esptool_cli",
+      "program": "bin/esptool.dart",
+      "args": [
+        "read_flash",
+        "--port", "COM22",
+        "--offset", "0x0",
+        "--size", "4096",
+        "--filename", "${workspaceFolder}/dump.bin",
+        "--timeout", "30"
+      ],
       "toolArgs": ["--enable-asserts"]
     }
   ]

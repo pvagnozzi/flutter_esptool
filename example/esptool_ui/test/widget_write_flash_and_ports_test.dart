@@ -297,8 +297,7 @@ class _LoggingTransport implements EspTransportInterface {
     this.failFlashMd5 = false,
     this.longFrames = false,
     this.nullTransportErrorMessage = false,
-    this.jedecRawId = 0x1840EF,
-  });
+  }) : jedecRawId = 0x1840EF;
 
   final EspTransportLogger? logger;
   final bool throwOnClose;

@@ -1,4 +1,25 @@
-## 0.1.3
+## 0.1.4
+
+- Added `topics` to `pubspec.yaml` for pub.dev discoverability
+  (esp32, esp8266, serial, iot, embedded).
+- Rewrote `README.md` with badges, platform support table,
+  quick-start example, and API reference links.
+- Completed dartdoc coverage on all public library symbols
+  (models, transport, resilience, infrastructure layers).
+- Added `CONTRIBUTING.md` and `SECURITY.md`.
+- New CI jobs: coverage report (lcov, ≥70% threshold),
+  PR auto-labeler, PR notification with checklist.
+- Added Dependabot for weekly pub and GitHub Actions updates.
+- Added GitHub Copilot review instructions and
+  professional 7-section PR template.
+- Added cross-platform git hooks
+  (pre-commit, commit-msg, pre-push, post-merge)
+  with sh and PowerShell installers.
+- Added Docker analysis container with pana, semgrep, lcov,
+  and a full-analysis orchestration script.
+- Added GitHub label bootstrap one-shot workflow.
+- Changed repository default branch to `main`;
+  added maintainer bypass actor to all branch rulesets.
 
 - Updated `platform_serial` dependency to `^0.1.2` (latest published version).
 - Hardened package metadata for pub.dev (`description`, `homepage`, `repository`, `issue_tracker`).

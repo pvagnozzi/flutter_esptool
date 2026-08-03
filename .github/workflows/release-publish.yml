@@ -51,7 +51,7 @@ jobs:
       # ── 3. Install GitVersion ─────────────────────────────────────────────
       - name: Install GitVersion
         if: steps.guard.outputs.skip == 'false'
-        uses: gittools/actions/gitversion/setup@v3.1
+        uses: gittools/actions/gitversion/setup@v4.7
         with:
           versionSpec: '6.x'
 
@@ -59,7 +59,7 @@ jobs:
       - name: Determine version
         id: gitversion
         if: steps.guard.outputs.skip == 'false'
-        uses: gittools/actions/gitversion/execute@v3.1
+        uses: gittools/actions/gitversion/execute@v4.7
         with:
           useConfigFile: true
 

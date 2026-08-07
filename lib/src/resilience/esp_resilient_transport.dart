@@ -77,7 +77,27 @@ class EspResilientTransport implements EspTransportInterface {
   Future<void> resetToBootloader() => _inner.resetToBootloader();
 
   @override
+  Future<void> hardReset() => _inner.hardReset();
+
+  @override
   Future<void> changeBaud(int newBaud) => _inner.changeBaud(newBaud);
+
+  @override
+  Future<List<int>> readRaw(int count, {Duration? timeout}) =>
+      _inner.readRaw(count, timeout: timeout);
+
+  @override
+  Future<void> flushRx() => _inner.flushRx();
+
+  @override
+  Future<void> writeRaw(List<int> bytes, {Duration? timeout}) =>
+      _inner.writeRaw(bytes, timeout: timeout);
+
+  @override
+  Future<void> reopenPort({
+    Duration waitBefore = const Duration(milliseconds: 1500),
+  }) =>
+      _inner.reopenPort(waitBefore: waitBefore);
 
   // ── Resilient sendCommand ───────────────────────────────────────────────────
 

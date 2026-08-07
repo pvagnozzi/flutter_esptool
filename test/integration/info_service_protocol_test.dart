@@ -98,6 +98,23 @@ class _ScriptedInfoTransport implements EspTransportInterface {
   Future<void> resetToBootloader() async {}
 
   @override
+  Future<void> hardReset() async {}
+
+  @override
+  Future<List<int>> readRaw(int count, {Duration? timeout}) async => <int>[];
+
+  @override
+  Future<void> flushRx() async {}
+
+  @override
+  Future<void> writeRaw(List<int> bytes, {Duration? timeout}) async {}
+
+  @override
+  Future<void> reopenPort({
+    Duration waitBefore = const Duration(milliseconds: 1500),
+  }) async {}
+
+  @override
   Future<void> changeBaud(int newBaud) async {}
 
   @override

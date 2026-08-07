@@ -31,6 +31,12 @@ class EspChipInfo {
     required this.magicValue,
     required this.macAddress,
     this.flashSizeBytes,
+    this.psramCapacityBytes,
+    this.psramType,
+    this.psramVendor,
+    this.embeddedFlashBytes,
+    this.flashVendor,
+    this.chipRevision,
   });
 
   /// The detected chip family.
@@ -45,6 +51,24 @@ class EspChipInfo {
   /// The formatted MAC address.
   final String macAddress;
 
-  /// The optional flash size in bytes.
+  /// The optional external flash size in bytes (from SPI JEDEC).
   final int? flashSizeBytes;
+
+  /// Embedded PSRAM capacity in bytes, or null if none / unknown.
+  final int? psramCapacityBytes;
+
+  /// PSRAM interface type string, e.g. "OPI" or "QSPI", or null.
+  final String? psramType;
+
+  /// PSRAM vendor string, e.g. "AP_3v3", or null.
+  final String? psramVendor;
+
+  /// Embedded flash size in bytes (distinct from external SPI flash), or null.
+  final int? embeddedFlashBytes;
+
+  /// Flash vendor string, e.g. "XMC", "GD", or null.
+  final String? flashVendor;
+
+  /// Chip silicon revision string, e.g. "v0.2", or null.
+  final String? chipRevision;
 }

@@ -9,6 +9,7 @@ import 'package:flutter_esptool/src/models/esp_command.dart';
 import 'package:flutter_esptool/src/models/esp_error.dart';
 import 'package:flutter_esptool/src/models/esp_flash_info.dart';
 import 'package:flutter_esptool/src/models/esp_result.dart';
+import 'package:flutter_esptool/src/models/esp_security_info.dart';
 import 'package:flutter_esptool/src/transport/esp_transport_interface.dart';
 
 /// Provides chip and flash information queries.
@@ -74,6 +75,64 @@ class InfoService {
 
   /// Returns the currently connected chip metadata.
   Future<Result<EspChipInfo>> getChipInfo() => _chipDetectionService.detect();
+
+  /// Queries the device security information using the GET_SECURITY_INFO
+  /// command (opcode 0x14).
+  ///
+  /// Works in ROM bootloader mode without the flasher stub.  The ROM returns
+  /// a 20-byte response payload:
+  ///   [0..3]   flags           (uint32 LE)
+  ///   [4]      flash_crypt_cnt (uint8)
+  ///   [5..11]  key_purposes    (7 bytes)
+  ///   [12..15] chip_id         (uint32 LE)
+  ///   [16..19] api_version     (uint32 LE)
+  ///
+  /// Returns [EspSecurityInfo] on success, or an [EspError] if the command
+  /// is not supported by this chip / ROM version.
+  Future<Result<EspSecurityInfo>> getSecurityInfo() async {
+    try {
+      final response = await _transport.sendCommand(
+        EspCommand(opcode: EspCommandOpcode.getSecurityInfo),
+      );
+      if (!response.isSuccess) {
+        return Failure<EspSecurityInfo>(
+          EspError(
+            type: EspErrorType.invalidResponse,
+            message: 'GET_SECURITY_INFO failed: '
+                'status=${response.status} error=${response.error}',
+          ),
+        );
+      }
+      final data = response.data;
+      if (data.length < 20) {
+        return Failure<EspSecurityInfo>(
+          EspError(
+            type: EspErrorType.invalidResponse,
+            message: 'GET_SECURITY_INFO response too short: '
+                '${data.length} bytes (expected ≥20)',
+          ),
+        );
+      }
+      final bd = ByteData.sublistView(data);
+      return Success<EspSecurityInfo>(
+        EspSecurityInfo(
+          flags: bd.getUint32(0, Endian.little),
+          flashCryptCnt: data[4],
+          keyPurposes: data.sublist(5, 12).toList(),
+          chipId: bd.getUint32(12, Endian.little),
+          apiVersion: bd.getUint32(16, Endian.little),
+        ),
+      );
+    } catch (error, stackTrace) {
+      return Failure<EspSecurityInfo>(
+        EspError(
+          type: EspErrorType.invalidResponse,
+          message: error.toString(),
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+  }
 
   /// Returns the device MAC address.
   Future<Result<String>> getMac() async {

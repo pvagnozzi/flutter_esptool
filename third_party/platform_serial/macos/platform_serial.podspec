@@ -15,7 +15,18 @@ and configures ports with termios.
   s.public_header_files = 'Classes/**/*.h'
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.14'
-  s.static_framework = true
+  # NOTE: despite this pod historically declaring static_framework = true,
+  # the app's macos/Podfile uses plain `use_frameworks!` (dynamic linkage)
+  # with no static override, so CocoaPods has always actually built this as
+  # a genuine dynamic Mach-O dylib regardless of this flag (confirmed via
+  # `file` on the built binary). Since static_framework=true also made
+  # CocoaPods skip embedding it into the app's Contents/Frameworks/ (only
+  # correct for a *real* static framework, which this isn't), release builds
+  # crashed at launch outside Xcode/`flutter run` with a dyld
+  # "Library not loaded: @rpath/platform_serial.framework/..." error — the
+  # framework was linked against but never copied into the distributed app
+  # bundle. Removing this flag lets CocoaPods treat it as the normal dynamic
+  # framework it already is, so it gets embedded like every other plugin.
   s.frameworks = 'Foundation', 'IOKit'
   s.libraries = 'c++'
   s.swift_version = '5.0'

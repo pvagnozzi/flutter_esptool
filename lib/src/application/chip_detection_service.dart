@@ -28,6 +28,16 @@ class ChipDetectionService implements ChipDetectorInterface {
       _esp32EfuseBaseRegister + 0x00C;
   static const int _esp32MacLowRegister = 0x6001A044;
   static const int _esp32MacHighRegister = 0x6001A048;
+  // ESP32-S3 factory (base) MAC lives in eFuse BLOCK1 word0/word1.
+  // EFUSE_BASE = 0x60007000, BLOCK1 = +0x44. Verified against real hardware:
+  //   0x60007044 = 0x2ccf5eec  -> bytes 2c cf 5e ec (MAC[2..5])
+  //   0x60007048 = 0x0000fc01  -> bytes fc 01        (MAC[0..1])
+  // This is the base/WiFi-STA MAC the firmware reports (esp_read_mac /
+  // ESP_MAC_WIFI_STA). The generic ESP32 register (0x6001A044) is wrong for
+  // the S3 and reads zero, which previously forced a USB-serial fallback + a
+  // bogus +1 offset in the device manager.
+  static const int _esp32s3MacLowRegister = 0x60007044;
+  static const int _esp32s3MacHighRegister = 0x60007048;
 
   // ESP32-S3 eFuse BLOCK1 registers (verified against esptool.py source).
   // EFUSE_BASE = 0x60007000, BLOCK1 starts at EFUSE_BASE + 0x44 = 0x60007044.
@@ -197,12 +207,21 @@ class ChipDetectionService implements ChipDetectorInterface {
       }
     }
 
-    final lowAddress = family == ChipFamily.esp8266
-        ? _esp8266MacLowRegister
-        : _esp32MacLowRegister;
-    final highAddress = family == ChipFamily.esp8266
-        ? _esp8266MacHighRegister
-        : _esp32MacHighRegister;
+    final int lowAddress;
+    final int highAddress;
+    switch (family) {
+      case ChipFamily.esp8266:
+        lowAddress = _esp8266MacLowRegister;
+        highAddress = _esp8266MacHighRegister;
+        break;
+      case ChipFamily.esp32s3:
+        lowAddress = _esp32s3MacLowRegister;
+        highAddress = _esp32s3MacHighRegister;
+        break;
+      default:
+        lowAddress = _esp32MacLowRegister;
+        highAddress = _esp32MacHighRegister;
+    }
     final low = await _readRegister(lowAddress);
     final high = await _readRegister(highAddress);
 

@@ -95,6 +95,21 @@ class EspTransport implements EspTransportInterface {
 
   @override
   Future<void> open(EspConfig config) async {
+    // Idempotent open: if the port is already open from a previous session
+    // (e.g. a flash/erase that wedged and never tore down its handle), close
+    // it first so we recover cleanly instead of failing with "Port … is
+    // already open on macOS". Best-effort — ignore close errors and proceed to
+    // reopen.
+    if (serial.isOpen) {
+      _d('[ESP] open: port already open — closing stale handle first');
+      try {
+        await serial.close();
+      } catch (_) {
+        // Ignore: we only care that the subsequent open succeeds.
+      }
+      _readBuffer.clear();
+    }
+
     final serialConfig = SerialConfig(
       portName: config.portName,
       baudRate: config.initialBaudRate,

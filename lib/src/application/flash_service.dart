@@ -216,6 +216,10 @@ class FlashService implements FlashServiceInterface {
     required List<Uint8List> dataBlocks,
     required int compressedTotalBytes,
   }) async {
+    if (!_stubLoaded) {
+      await _disableWatchdogs();
+    }
+
     final beginResponse = await _transport.sendCommand(
       EspCommand(
         opcode: params.compress
@@ -1081,6 +1085,45 @@ class FlashService implements FlashServiceInterface {
     }
     return text;
   }
+
+  Future<void> _disableWatchdogs() async {
+    try {
+      // 1. Disable RTC WDT (ESP32-S3 / ESP32-C3)
+      await _writeReg(0x600080b0, 0x50d83aa1); // WDTWPROTECT_REG, WDT_WKEY
+      await _writeReg(0x60008098, 0);          // WDTCONFIG0_REG = 0
+      await _writeReg(0x600080b0, 0);          // Lock
+
+      // 2. Enable SWD auto-feed so Super Watchdog does not trigger
+      await _writeReg(0x600080b8, 0x12b52837); // SWD_WPROTECT_REG, SWD_WKEY
+      final swdConf = await _readReg(0x600080b4); // SWD_CONF_REG
+      await _writeReg(0x600080b4, swdConf | 0x80000000); // SWD_AUTO_FEED_EN
+      await _writeReg(0x600080b8, 0);          // Lock
+    } catch (_) {
+      // Non-fatal: ignore on chips with different register layouts
+    }
+  }
+
+  Future<void> _writeReg(int address, int value) async {
+    final payload = Uint8List(8);
+    ByteData.sublistView(payload)
+      ..setUint32(0, address, Endian.little)
+      ..setUint32(4, value, Endian.little);
+    await _transport.sendCommand(
+      EspCommand(opcode: EspCommandOpcode.writeReg, data: payload),
+    );
+  }
+
+  Future<int> _readReg(int address) async {
+    final payload = Uint8List(4);
+    ByteData.sublistView(payload).setUint32(0, address, Endian.little);
+    final resp = await _transport.sendCommand(
+      EspCommand(opcode: EspCommandOpcode.readReg, data: payload),
+    );
+    if (!resp.isSuccess) {
+      throw Exception('Read reg failed: 0x${address.toRadixString(16)}');
+    }
+    return resp.value;
+  }
 }
 
 class _Md5 {
@@ -1294,3 +1337,4 @@ class _Md5 {
     return (a + b + c + d) & 0xFFFFFFFF;
   }
 }
+

@@ -182,10 +182,13 @@ void main() {
       expect(result.isSuccess, isTrue);
     });
 
-    test('flashBegin payload uses erase-size rounded to block size', () async {
+    test('flashBegin payload uses erase-size equal to padded data length',
+        () async {
       late EspCommand flashBeginCommand;
       final transport = ScriptedTransport(
         handlers: <EspCommandOpcode, Queue<EspResponse Function(EspCommand)>>{
+          EspCommandOpcode.spiAttach: Queue<EspResponse Function(EspCommand)>()
+            ..add((_) => _successResponse(EspCommandOpcode.spiAttach)),
           EspCommandOpcode.flashBegin: Queue<EspResponse Function(EspCommand)>()
             ..add((command) {
               flashBeginCommand = command;
@@ -209,12 +212,18 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       final payload = ByteData.sublistView(flashBeginCommand.data);
-      // Erase size is rounded up to flash sector size (0x1000 = 4096 bytes)
-      // so that the ESP32 ROM FLASH_BEGIN command accepts it.
-      expect(payload.getUint32(0, Endian.little), 0x1000);
+      // ESP32-S3 ROM uses the 20-byte extended FLASH_BEGIN format:
+      //   [0]  erase_size  = padded data length (16 bytes for 9-byte input @ blockSize=8)
+      //   [4]  num_blocks  = 2
+      //   [8]  block_size  = 8
+      //   [12] offset      = 0x1000
+      //   [16] encrypted   = 0
+      // No sector-size rounding: ESP32-S3 ROM erases exactly erase_size bytes.
+      expect(payload.getUint32(0, Endian.little), 16); // padded to blockSize
       expect(payload.getUint32(4, Endian.little), 2);
       expect(payload.getUint32(8, Endian.little), 8);
       expect(payload.getUint32(12, Endian.little), 0x1000);
+      expect(payload.getUint32(16, Endian.little), 0); // encrypted = 0
     });
 
     test('writeFlash pads final block to the announced block size', () async {
@@ -452,6 +461,23 @@ class ScriptedTransport implements EspTransportInterface {
 
   @override
   Future<void> resetToBootloader() async {}
+
+  @override
+  Future<void> hardReset() async {}
+
+  @override
+  Future<List<int>> readRaw(int count, {Duration? timeout}) async => <int>[];
+
+  @override
+  Future<void> flushRx() async {}
+
+  @override
+  Future<void> writeRaw(List<int> bytes, {Duration? timeout}) async {}
+
+  @override
+  Future<void> reopenPort({
+    Duration waitBefore = const Duration(milliseconds: 1500),
+  }) async {}
 
   @override
   Future<EspResponse> sendCommand(EspCommand command,

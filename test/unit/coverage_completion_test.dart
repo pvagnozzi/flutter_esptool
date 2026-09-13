@@ -62,9 +62,11 @@ void main() {
       expect(read.onProgress, isNull);
     });
 
-    test('stub loader reports unavailable stubs', () async {
-      final loader = StubLoaderService();
+    test('stub loader reports unavailable stubs for non-S3 chip', () async {
+      // StubLoaderService requires a transport — use a minimal fake.
+      final loader = StubLoaderService(transport: _CommandTransport());
       expect(loader.isLoaded, isFalse);
+      // esp32 (not esp32s3) → stub not available.
       final result = await loader.loadStub(ChipFamily.esp32);
       expect(result, isA<Failure<void>>());
       expect(
@@ -548,8 +550,8 @@ void main() {
           portName: 'COM1', timeout: Duration(milliseconds: 1)));
       await expectLater(
           noiseOnly.sendCommand(EspCommand(opcode: EspCommandOpcode.sync)),
-          throwsA(isA<EspError>()
-              .having((error) => error.type, 'type', EspErrorType.timeout)));
+          throwsA(isA<EspError>().having(
+              (error) => error.type, 'type', EspErrorType.partialPacket)));
 
       final frameWithRemaining = EspTransport(
         serial: _Serial(responses: <Uint8List>[
@@ -695,6 +697,23 @@ class _CommandTransport implements EspTransportInterface {
 
   @override
   Future<void> resetToBootloader() async {}
+
+  @override
+  Future<void> hardReset() async {}
+
+  @override
+  Future<List<int>> readRaw(int count, {Duration? timeout}) async => <int>[];
+
+  @override
+  Future<void> flushRx() async {}
+
+  @override
+  Future<void> writeRaw(List<int> bytes, {Duration? timeout}) async {}
+
+  @override
+  Future<void> reopenPort({
+    Duration waitBefore = const Duration(milliseconds: 1500),
+  }) async {}
 
   @override
   Future<EspResponse> sendCommand(EspCommand command,

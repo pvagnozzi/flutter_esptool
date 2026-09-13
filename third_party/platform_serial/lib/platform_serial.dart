@@ -10,3 +10,4 @@ export 'src/models/serial_port_info.dart';
 export 'src/platform/serial_platform_interface.dart';
 export 'src/serial_manager.dart';
 export 'src/serial_port.dart';
+export 'src/direct_serial_port.dart';

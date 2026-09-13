@@ -144,12 +144,20 @@ class ChipDetectionService implements ChipDetectorInterface {
         }
       }
 
+      int? flashSizeBytes = embeddedFlashBytes;
+      if (flashSizeBytes == null) {
+        try {
+          flashSizeBytes = await _readSpiFlashSize(family);
+        } catch (_) {}
+      }
+
       return Success<EspChipInfo>(
         EspChipInfo(
           family: family,
           description: ChipFamilyResolver.describe(family),
           magicValue: magic,
           macAddress: macAddress,
+          flashSizeBytes: flashSizeBytes,
           psramCapacityBytes: psramCapacityBytes,
           psramType: psramType,
           psramVendor: psramVendor,
@@ -218,6 +226,10 @@ class ChipDetectionService implements ChipDetectorInterface {
         lowAddress = _esp32s3MacLowRegister;
         highAddress = _esp32s3MacHighRegister;
         break;
+      case ChipFamily.esp32c3:
+        lowAddress = 0x60008844;
+        highAddress = 0x60008848;
+        break;
       default:
         lowAddress = _esp32MacLowRegister;
         highAddress = _esp32MacHighRegister;
@@ -234,6 +246,57 @@ class ChipDetectionService implements ChipDetectorInterface {
       low & 0xFF,
     ];
     return _formatMac(bytes);
+  }
+
+  Future<int?> _readSpiFlashSize(ChipFamily family) async {
+    final int base;
+    switch (family) {
+      case ChipFamily.esp32:
+        base = 0x3FF42000;
+        break;
+      case ChipFamily.esp32s2:
+      case ChipFamily.esp32s3:
+      case ChipFamily.esp32c3:
+      default:
+        base = 0x60002000;
+    }
+
+    try {
+      // 1. SPI_USR2: 8-bit command 0x9F (SPIFLASH_RDID)
+      await _writeRegister(base + 0x20, (7 << 28) | 0x9F);
+      // 2. SPI_MISO_DLEN: 24 bits reply
+      await _writeRegister(base + 0x28, 23);
+      // 3. SPI_USR: enable COMMAND (bit 31) and MISO (bit 28)
+      await _writeRegister(base + 0x18, (1 << 31) | (1 << 28));
+      // 4. SPI_CMD: trigger USR command (bit 18)
+      await _writeRegister(base + 0x00, 1 << 18);
+      // 5. Read back result from SPI_W0
+      final val = await _readRegister(base + 0x58);
+      if (val != 0 && val != 0xFFFFFFFF && val != 0xFFFFFF) {
+        final capacityByte = (val >> 16) & 0xFF;
+        if (capacityByte >= 0x12 && capacityByte <= 0x24) {
+          return 1 << capacityByte;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _writeRegister(int address, int value) async {
+    final data = Uint8List(8);
+    ByteData.sublistView(data)
+      ..setUint32(0, address, Endian.little)
+      ..setUint32(4, value, Endian.little);
+    final response = await _transport.sendCommand(
+      EspCommand(opcode: EspCommandOpcode.writeReg, data: data),
+    );
+    if (!response.isSuccess) {
+      throw EspError(
+        type: EspErrorType.invalidResponse,
+        message: 'Failed to write register 0x${address.toRadixString(16)}',
+      );
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
   }
 
   String _formatMac(List<int> bytes) {

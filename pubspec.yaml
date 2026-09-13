@@ -23,6 +23,7 @@ dependencies:
   flutter:
     sdk: flutter
   platform_serial: ^0.1.2
+  crypto: ^3.0.0
 
 dev_dependencies:
   flutter_test:

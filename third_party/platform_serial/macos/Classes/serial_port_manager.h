@@ -142,6 +142,18 @@ serial_get_last_error_code(void);
 platform_serial_EXTERN platform_serial_EXPORT char *
 serial_copy_last_error_message(void);
 
+/// Sets the DTR (Data Terminal Ready) control signal.
+///
+/// Returns 0 on success or a negative macOS/POSIX error code on failure.
+platform_serial_EXTERN platform_serial_EXPORT int32_t
+serial_set_dtr(intptr_t handle, int32_t enabled);
+
+/// Sets the RTS (Request To Send) control signal.
+///
+/// Returns 0 on success or a negative macOS/POSIX error code on failure.
+platform_serial_EXTERN platform_serial_EXPORT int32_t
+serial_set_rts(intptr_t handle, int32_t enabled);
+
 /// Releases memory previously returned by this API.
 platform_serial_EXTERN platform_serial_EXPORT void
 serial_free_memory(void *memory);

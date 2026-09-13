@@ -28,6 +28,25 @@ class ChipDetectionService implements ChipDetectorInterface {
       _esp32EfuseBaseRegister + 0x00C;
   static const int _esp32MacLowRegister = 0x6001A044;
   static const int _esp32MacHighRegister = 0x6001A048;
+  // ESP32-S3 factory (base) MAC lives in eFuse BLOCK1 word0/word1.
+  // EFUSE_BASE = 0x60007000, BLOCK1 = +0x44. Verified against real hardware:
+  //   0x60007044 = 0x2ccf5eec  -> bytes 2c cf 5e ec (MAC[2..5])
+  //   0x60007048 = 0x0000fc01  -> bytes fc 01        (MAC[0..1])
+  // This is the base/WiFi-STA MAC the firmware reports (esp_read_mac /
+  // ESP_MAC_WIFI_STA). The generic ESP32 register (0x6001A044) is wrong for
+  // the S3 and reads zero, which previously forced a USB-serial fallback + a
+  // bogus +1 offset in the device manager.
+  static const int _esp32s3MacLowRegister = 0x60007044;
+  static const int _esp32s3MacHighRegister = 0x60007048;
+
+  // ESP32-S3 eFuse BLOCK1 registers (verified against esptool.py source).
+  // EFUSE_BASE = 0x60007000, BLOCK1 starts at EFUSE_BASE + 0x44 = 0x60007044.
+  // word3 = BLOCK1 + 4*3 = 0x60007050
+  // word4 = BLOCK1 + 4*4 = 0x60007054
+  // word5 = BLOCK1 + 4*5 = 0x60007058
+  static const int _esp32s3EfuseWord3 = 0x60007050;
+  static const int _esp32s3EfuseWord4 = 0x60007054;
+  static const int _esp32s3EfuseWord5 = 0x60007058;
 
   final EspTransportInterface _transport;
 
@@ -46,12 +65,97 @@ class ChipDetectionService implements ChipDetectorInterface {
       }
 
       final macAddress = await _readMacAddress(family);
+
+      // Read ESP32-S3 eFuse words to extract PSRAM, flash vendor, and chip
+      // revision information.  These are best-effort — if any register read
+      // fails (e.g. from ROM bootloader without the flasher stub), we simply
+      // leave the corresponding fields as null.
+      int? psramCapacityBytes;
+      String? psramType;
+      String? psramVendor;
+      int? embeddedFlashBytes;
+      String? flashVendor;
+      String? chipRevision;
+
+      if (family == ChipFamily.esp32s3) {
+        try {
+          final word3 = await _readRegister(_esp32s3EfuseWord3);
+          final word4 = await _readRegister(_esp32s3EfuseWord4);
+          final word5 = await _readRegister(_esp32s3EfuseWord5);
+
+          // Chip revision: rev_major from word5[25:24], rev_minor from
+          // word5[23] (high bit) and word3[20:18] (low 3 bits).
+          final revMajor = (word5 >> 24) & 0x03;
+          final revMinorHi = (word5 >> 23) & 0x01;
+          final revMinorLow = (word3 >> 18) & 0x07;
+          final revMinor = (revMinorHi << 3) | revMinorLow;
+          chipRevision = 'v$revMajor.$revMinor';
+
+          // Embedded flash capacity (pkg_version / flash_cap from word3).
+          final flashCap = (word3 >> 27) & 0x07;
+          embeddedFlashBytes = switch (flashCap) {
+            1 => 8 * 1024 * 1024,
+            2 => 4 * 1024 * 1024,
+            _ => null, // 0 = no embedded flash
+          };
+
+          // Flash vendor from word4[2:0].
+          final flashVendorCode = (word4 >> 0) & 0x07;
+          flashVendor = switch (flashVendorCode) {
+            1 => 'XMC',
+            2 => 'GD',
+            3 => 'FM',
+            4 => 'TT',
+            5 => 'BY',
+            _ => null,
+          };
+
+          // PSRAM capacity: psram_cap_hi from word5[19], psram_cap_low from
+          // word4[4:3].
+          final psramCapLow = (word4 >> 3) & 0x03;
+          final psramCapHi = (word5 >> 19) & 0x01;
+          final psramCap = (psramCapHi << 2) | psramCapLow;
+          // Decode capacity in bytes and interface type.
+          // 0=none,1=8MB OPI,2=2MB QSPI,3=16MB OPI,4=4MB QSPI
+          switch (psramCap) {
+            case 1:
+              psramCapacityBytes = 8 * 1024 * 1024;
+              psramType = 'OPI';
+            case 2:
+              psramCapacityBytes = 2 * 1024 * 1024;
+              psramType = 'QSPI';
+            case 3:
+              psramCapacityBytes = 16 * 1024 * 1024;
+              psramType = 'OPI';
+            case 4:
+              psramCapacityBytes = 4 * 1024 * 1024;
+              psramType = 'QSPI';
+          }
+
+          // PSRAM vendor from word4[8:7].
+          final psramVendorCode = (word4 >> 7) & 0x03;
+          psramVendor = switch (psramVendorCode) {
+            1 => 'AP_3v3',
+            2 => 'AP_1v8',
+            _ => null,
+          };
+        } catch (_) {
+          // eFuse reads are best-effort; leave all fields null on error.
+        }
+      }
+
       return Success<EspChipInfo>(
         EspChipInfo(
           family: family,
           description: ChipFamilyResolver.describe(family),
           magicValue: magic,
           macAddress: macAddress,
+          psramCapacityBytes: psramCapacityBytes,
+          psramType: psramType,
+          psramVendor: psramVendor,
+          embeddedFlashBytes: embeddedFlashBytes,
+          flashVendor: flashVendor,
+          chipRevision: chipRevision,
         ),
       );
     } catch (error, stackTrace) {
@@ -78,6 +182,9 @@ class ChipDetectionService implements ChipDetectorInterface {
         message: 'Failed to read register 0x${address.toRadixString(16)}',
       );
     }
+    // Small inter-command delay so the ESP ROM bootloader has time to settle
+    // between back-to-back register reads before the next command is sent.
+    await Future<void>.delayed(const Duration(milliseconds: 20));
     return response.value;
   }
 
@@ -100,12 +207,21 @@ class ChipDetectionService implements ChipDetectorInterface {
       }
     }
 
-    final lowAddress = family == ChipFamily.esp8266
-        ? _esp8266MacLowRegister
-        : _esp32MacLowRegister;
-    final highAddress = family == ChipFamily.esp8266
-        ? _esp8266MacHighRegister
-        : _esp32MacHighRegister;
+    final int lowAddress;
+    final int highAddress;
+    switch (family) {
+      case ChipFamily.esp8266:
+        lowAddress = _esp8266MacLowRegister;
+        highAddress = _esp8266MacHighRegister;
+        break;
+      case ChipFamily.esp32s3:
+        lowAddress = _esp32s3MacLowRegister;
+        highAddress = _esp32s3MacHighRegister;
+        break;
+      default:
+        lowAddress = _esp32MacLowRegister;
+        highAddress = _esp32MacHighRegister;
+    }
     final low = await _readRegister(lowAddress);
     final high = await _readRegister(highAddress);
 

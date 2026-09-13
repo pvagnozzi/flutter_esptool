@@ -18,10 +18,10 @@ enum EspCommandOpcode {
   memBegin(0x05),
 
   /// Finalises a RAM write sequence.
-  memEnd(0x07),
+  memEnd(0x06),
 
   /// Sends a RAM data block.
-  memData(0x06),
+  memData(0x07),
 
   /// Synchronises with the ROM bootloader.
   sync(0x08),
@@ -63,7 +63,15 @@ enum EspCommandOpcode {
   eraseFlash(0xD0),
 
   /// Erases a specific flash region.
-  eraseRegion(0xD1);
+  eraseRegion(0xD1),
+
+  /// Reads flash bytes at stub speed (stub required).
+  ///
+  /// Payload: offset(4LE) + length(4LE) + packetSize(4LE) + maxInflight(4LE).
+  /// After the ACK, the stub streams SLIP-framed [packetSize]-byte data packets.
+  /// The host must ACK each packet by sending back the running total as uint32 LE.
+  /// After all data a final SLIP frame carries the 16-byte MD5 digest.
+  readFlashStub(0xD2);
 
   const EspCommandOpcode(this.value);
 

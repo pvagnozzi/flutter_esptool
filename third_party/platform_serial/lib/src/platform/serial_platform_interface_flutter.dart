@@ -302,6 +302,9 @@ class MethodChannelSerialPlatformInterface implements SerialPlatformInterface {
     if (Platform.isLinux) {
       return _setLinuxControlSignal(portName, _linuxSignalDtr, enabled);
     }
+    if (Platform.isMacOS) {
+      return MacOSSerialImpl.setDtr(portName, enabled);
+    }
 
     throw SerialError(
       type: SerialErrorType.platformUnavailable,
@@ -313,6 +316,9 @@ class MethodChannelSerialPlatformInterface implements SerialPlatformInterface {
   Future<void> setRts(String portName, bool enabled) async {
     if (Platform.isLinux) {
       return _setLinuxControlSignal(portName, _linuxSignalRts, enabled);
+    }
+    if (Platform.isMacOS) {
+      return MacOSSerialImpl.setRts(portName, enabled);
     }
 
     throw SerialError(

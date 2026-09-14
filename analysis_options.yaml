@@ -1,3 +1,11 @@
+# Analysis options for flutter_esptool main package.
+#
+# Enforces strict Dart analysis rules and linter rules aligned with
+# Flutter and pub.dev standards for professional code quality.
+#
+# Copyright (c) 2026 Piergiorgio Vagnozzi
+# Licensed under the MIT License.
+
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
@@ -9,15 +17,35 @@ analyzer:
     strict-casts: true
     strict-inference: true
     strict-raw-types: true
+  errors:
+    # Treat specific errors as fatal to ensure code quality.
+    missing_required_param: error
+    missing_return: error
+    todo: ignore
 
 linter:
   rules:
-    always_use_package_imports: true
-    directives_ordering: true
-    prefer_single_quotes: true
-    avoid_print: true
-    unawaited_futures: true
-    cancel_subscriptions: true
-    close_sinks: true
-    prefer_final_locals: true
-    unnecessary_lambdas: true
+    # Always use package imports for consistency.
+    - always_use_package_imports
+    # Sort imports and directives in a consistent order.
+    - directives_ordering
+    # Prefer single quotes for Dart strings (consistent with Dart style guide).
+    - prefer_single_quotes
+    # Avoid print statements in production code.
+    - avoid_print
+    # Ensure futures are awaited to catch async errors.
+    - unawaited_futures
+    # Cancel subscriptions to prevent memory leaks.
+    - cancel_subscriptions
+    # Close sinks to prevent resource leaks.
+    - close_sinks
+    # Prefer final for local variables that are not reassigned.
+    - prefer_final_locals
+    # Avoid unnecessary lambda functions.
+    - unnecessary_lambdas
+    # Prefer const constructors when possible (performance optimization).
+    - prefer_const_constructors
+    # Consistent naming for private fields.
+    - prefer_final_fields
+    # Empty catches are usually a mistake.
+    - empty_catches

@@ -1,9 +1,18 @@
 name: flutter_esptool
-description: >-
+
+# ESP8266/ESP32 serial bootloader toolkit for Flutter and Dart.
+# Typed results, chip discovery, flash workflows, and protocol-safe transport abstractions.
+#
+# Copyright (c) 2026 Piergiorgio Vagnozzi
+# Licensed under the MIT License.
+
+description: >
   ESP8266/ESP32 serial bootloader toolkit for Flutter and Dart.
   Typed results, chip discovery, flash workflows, and
   protocol-safe transport abstractions.
-version: 0.1.5
+
+version: 0.2.0
+
 homepage: https://github.com/pvagnozzi/flutter_esptool
 repository: https://github.com/pvagnozzi/flutter_esptool
 issue_tracker: https://github.com/pvagnozzi/flutter_esptool/issues
@@ -14,21 +23,23 @@ topics:
   - serial
   - iot
   - embedded
+  - bootloader
+  - firmware
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
-  flutter: ">=3.10.0"
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.16.0'
 
 dependencies:
   flutter:
     sdk: flutter
   platform_serial: ^0.1.2
-  crypto: ^3.0.0
+  crypto: ^3.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
   mocktail: ^1.0.4
 
 dependency_overrides:

@@ -1,10 +1,20 @@
 name: esptool_ui
+
+# Professional Flutter demonstration application.
+# Complete showcase of flutter_esptool capabilities with polished UI.
+#
+# Copyright (c) 2026 Piergiorgio Vagnozzi
+# Licensed under the MIT License.
+
 description: Professional demo app for flutter_esptool package capabilities.
+
 publish_to: none
-version: 1.0.0+1
+
+version: 2.0.0+2
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.16.0'
 
 dependencies:
   flutter:
@@ -14,14 +24,15 @@ dependencies:
   flutter_esptool:
     path: ../..
   platform_serial: ^0.1.0
-  file_selector: ^1.1.0
+  file_selector: ^1.2.0
+  provider: ^6.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 dependency_overrides:
   platform_serial:

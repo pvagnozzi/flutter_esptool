@@ -1,1 +1,13 @@
+# Analysis options for esptool_ui example.
+#
+# Extends Flutter lints for the UI application.
+
 include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - always_use_package_imports
+    - directives_ordering
+    - prefer_single_quotes
+    - prefer_final_locals
+    - unnecessary_lambdas

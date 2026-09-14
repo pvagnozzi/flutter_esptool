@@ -1,9 +1,18 @@
 name: esptool_cli
+
+# Professional command-line tool for ESP chip programming.
+# Complete demonstration of flutter_esptool capabilities.
+#
+# Copyright (c) 2026 Piergiorgio Vagnozzi
+# Licensed under the MIT License.
+
 description: A complete CLI tool for ESP chip programming - clone of official esptool
+
 publish_to: none
 
 environment:
-  sdk: ">=3.10.0 <4.0.0"
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.16.0'
 
 dependencies:
   flutter:
@@ -11,15 +20,15 @@ dependencies:
   flutter_esptool:
     path: ../../
   args: ^2.4.0
+  meta: ^1.14.0
 
-  meta: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-  mocktail: ^1.0.0
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.4
 
 dependency_overrides:
   platform_serial:
